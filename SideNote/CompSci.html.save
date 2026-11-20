@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content="width=device-width, initial-scale=1.0">
+<title>computer Science Departmet</title>
+<style>
+#heading{font:sans serif;text-align:center;font-color:137c15}
+
+</style>
+</head>
+<body>
+<div>
+<h1 id="heading">Computer Science Department</div>
+</h1>
+</body>
+</html>
