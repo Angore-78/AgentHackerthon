@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment {{ transaction.reference }} | TransitFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-slate-900 text-white p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <span class="text-xs text-slate-400 font-mono">Transaction Waybill Receipt</span>
+                <h1 class="text-xl font-bold font-mono text-emerald-400 mt-0.5">{{ transaction.reference }}</h1>
+                <p class="text-xs text-slate-400">Initiated on {{ transaction.created_at|date:"F d, Y at H:i" }}</p>
+            </div>
+            <div>
+                <span class="px-3 py-1 rounded-full text-xs font-bold border {{ transaction.status_badge_class }}">
+                    {{ transaction.get_status_display }}
+                </span>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-6">
+            
+            <!-- Receipt Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pb-6 border-b border-slate-100 text-xs">
+                <div>
+                    <span class="text-slate-400 text-[10px] uppercase font-semibold">Consignment Track ID</span>
+                    <a href="{% url 'shipment_detail' transaction.shipment.tracking_number %}" class="font-bold text-emerald-700 hover:underline block mt-0.5 font-mono">
+                        {{ transaction.shipment.tracking_number }}
+                    </a>
+                </div>
+                <div>
+                    <span class="text-slate-400 text-[10px] uppercase font-semibold">Amount Paid</span>
+                    <div class="text-base font-bold text-slate-900 mt-0.5 font-mono">KES {{ transaction.amount }}</div>
+                </div>
+                <div>
+                    <span class="text-slate-400 text-[10px] uppercase font-semibold">Payment Channel</span>
+                    <div class="font-medium text-slate-800 mt-0.5">{{ transaction.get_payment_method_display }}</div>
+                </div>
+                <div>
+                    <span class="text-slate-400 text-[10px] uppercase font-semibold">M-Pesa Receipt Code</span>
+                    <div class="text-sm font-bold text-emerald-600 font-mono mt-0.5">
+                        {{ transaction.mpesa_receipt|default:"Awaiting Confirmation" }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer & Channel Details -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <span class="text-slate-400 text-[10px] uppercase font-semibold">Customer / Consignor</span>
+                    <div class="font-bold text-slate-800 mt-0.5">{{ transaction.client.get_full_name|default:transaction.client.username }}</div>
+                </div>
+                <div>
+                    <span class="text-slate-400 text-[10px] uppercase font-semibold">Mobile Number</span>
+                    <div class="font-mono text-slate-800 mt-0.5">{{ transaction.phone_number }}</div>
+                </div>
+                <div>
+                    <span class="text-slate-400 text-[10px] uppercase font-semibold">PayHero Channel ID</span>
+                    <div class="font-mono text-slate-800 mt-0.5">#{{ config.channel_id }} ({{ config.environment }})</div>
+                </div>
+            </div>
+
+            <!-- If Pending: Show Simulation Button -->
+            {% if transaction.status == 'PENDING' %}
+            <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-amber-900 uppercase">Awaiting Settlement Confirmation</span>
+                    <span class="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-mono">Listening on Webhook</span>
+                </div>
+                <p class="text-xs text-amber-800">
+                    If paying live via PayHero Lipwa Link, your mobile phone prompt will confirm shortly. For testing, trigger instant sandbox settlement below:
+                </p>
+                <div class="pt-1">
+                    <a href="{% url 'simulate_payment' transaction.reference %}" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs py-2 px-4 rounded-lg shadow transition inline-flex items-center space-x-1.5">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Simulate M-Pesa Callback Approval Now</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Audit Callback Payload (For Technical Visibility) -->
+            {% if transaction.callback_payload %}
+            <div class="space-y-1">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PayHero Webhook Callback Data:</span>
+                <pre class="bg-slate-900 text-emerald-400 p-3 rounded-lg text-[10px] font-mono overflow-x-auto">{{ transaction.callback_payload }}</pre>
+            </div>
+            {% endif %}
+
+            <div class="flex items-center justify-between pt-4 border-t border-slate-100 text-xs">
+                <a href="{% url 'payments_index' %}" class="text-slate-500 hover:text-slate-800">
+                    <i class="fa-solid fa-arrow-left mr-1"></i>Back to Payments
+                </a>
+                <a href="{% url 'shipment_detail' transaction.shipment.tracking_number %}" class="bg-slate-900 text-white font-semibold px-4 py-2 rounded-lg hover:bg-slate-800 transition">
+                    View Shipment Timeline
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+{% endblock %}

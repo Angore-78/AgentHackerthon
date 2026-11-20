@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TransitFlow{% endblock %} | Goods in Transit & Cold-Chain Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        perishable: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-subtle {
+            animation: pulse-subtle 2.5s infinite;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- Logo & Brand -->
+                <div class="flex items-center space-x-3">
+                    <a href="{% url 'portal_redirect' %}" class="flex items-center space-x-2 text-white hover:text-emerald-400 transition-colors">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow">
+                            <i class="fa-solid fa-truck-fast text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="text-xl font-bold tracking-tight">Transit<span class="text-emerald-400">Flow</span></span>
+                            <span class="block text-[10px] tracking-wider text-slate-400 font-mono uppercase">Logistics & Cold-Chain</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Navigation Links -->
+                {% if user.is_authenticated %}
+                <nav class="hidden md:flex items-center space-x-1 text-sm font-medium">
+                    <!-- Current Role Portal Link -->
+                    <a href="{% url portal_url_name %}" class="px-3 py-2 rounded-md hover:bg-slate-800 text-slate-200 hover:text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-table-columns text-emerald-400"></i>
+                        <span>{{ session_role_label }} Portal</span>
+                    </a>
+
+                    <!-- Payments Section -->
+                    <a href="{% url 'payments_index' %}" class="px-3 py-2 rounded-md hover:bg-slate-800 text-slate-200 hover:text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-wallet text-amber-400"></i>
+                        <span>Payments & Lipwa Link</span>
+                    </a>
+
+                    <!-- PayHero How-To Guide -->
+                    <a href="{% url 'payhero_howto' %}" class="px-3 py-2 rounded-md hover:bg-slate-800 text-emerald-400 hover:text-emerald-300 flex items-center space-x-2 font-semibold">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>PayHero How-To</span>
+                    </a>
+
+                    {% if is_manager %}
+                    <a href="{% url 'configure_payhero' %}" class="px-3 py-2 rounded-md hover:bg-slate-800 text-slate-300 hover:text-white flex items-center space-x-1.5 text-xs">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>API Config</span>
+                    </a>
+                    {% endif %}
+                </nav>
+                {% endif %}
+
+                <!-- Right Side: Session Role, Switcher & User Menu -->
+                <div class="flex items-center space-x-3">
+                    {% if user.is_authenticated %}
+                        <!-- Role Badge & Session Indicator -->
+                        <div class="hidden sm:flex flex-col items-end text-xs">
+                            <div class="flex items-center space-x-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                <span class="px-2 py-0.5 rounded font-semibold {{ user.role_badge_class }}">
+                                    {{ session_role_label }}
+                                </span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 mt-0.5 font-mono">
+                                <i class="fa-regular fa-clock mr-1"></i>Shift Session
+                            </span>
+                        </div>
+
+                        <!-- Quick Role Switcher Dropdown (Demo Evaluator Tool) -->
+                        <div class="relative" id="roleSwitchContainer">
+                            <button id="roleSwitchBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-md flex items-center space-x-1 border border-slate-700 transition" title="Switch Portal Persona for Testing">
+                                <i class="fa-solid fa-arrows-rotate text-emerald-400"></i>
+                                <span class="hidden lg:inline">Switch Role</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                            </button>
+                            <div id="roleSwitchMenu" class="hidden absolute right-0 mt-2 w-52 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 py-1.5 z-50 text-xs">
+                                <div class="px-3 py-1 font-semibold text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-100">
+                                    Demo Role Switcher
+                                </div>
+                                <a href="{% url 'quick_switch_role' 'MANAGER' %}" class="px-3 py-2 hover:bg-purple-50 flex items-center justify-between text-purple-900">
+                                    <span class="font-medium"><i class="fa-solid fa-user-shield text-purple-600 mr-2"></i>Manager</span>
+                                    {% if user_role == 'MANAGER' %}<i class="fa-solid fa-check text-purple-600"></i>{% endif %}
+                                </a>
+                                <a href="{% url 'quick_switch_role' 'PORTER' %}" class="px-3 py-2 hover:bg-amber-50 flex items-center justify-between text-amber-900">
+                                    <span class="font-medium"><i class="fa-solid fa-dolly text-amber-600 mr-2"></i>Porter</span>
+                                    {% if user_role == 'PORTER' %}<i class="fa-solid fa-check text-amber-600"></i>{% endif %}
+                                </a>
+                                <a href="{% url 'quick_switch_role' 'DRIVER' %}" class="px-3 py-2 hover:bg-emerald-50 flex items-center justify-between text-emerald-900">
+                                    <span class="font-medium"><i class="fa-solid fa-truck text-emerald-600 mr-2"></i>Driver</span>
+                                    {% if user_role == 'DRIVER' %}<i class="fa-solid fa-check text-emerald-600"></i>{% endif %}
+                                </a>
+                                <a href="{% url 'quick_switch_role' 'CLIENT' %}" class="px-3 py-2 hover:bg-blue-50 flex items-center justify-between text-blue-900">
+                                    <span class="font-medium"><i class="fa-solid fa-building-user text-blue-600 mr-2"></i>Client</span>
+                                    {% if user_role == 'CLIENT' %}<i class="fa-solid fa-check text-blue-600"></i>{% endif %}
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- User Profile & Logout -->
+                        <div class="flex items-center space-x-2 pl-2 border-l border-slate-700">
+                            <span class="text-xs text-slate-300 font-medium hidden md:inline">
+                                {{ user.username }}
+                            </span>
+                            <a href="{% url 'logout' %}" class="text-slate-400 hover:text-rose-400 text-sm p-1.5 transition" title="Log Out">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="text-sm font-semibold text-emerald-400 hover:text-emerald-300">Log In</a>
+                        <a href="{% url 'register' %}" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded shadow">Register</a>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- Global Alert / Messages Container -->
+    {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
+        {% for message in messages %}
+        <div class="p-3 mb-2 rounded-lg text-sm flex items-start justify-between shadow-sm border {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-800{% endif %}">
+            <div class="flex items-center space-x-2">
+                {% if message.tags == 'error' %}
+                    <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+                {% elif message.tags == 'warning' %}
+                    <i class="fa-solid fa-bell text-amber-500"></i>
+                {% else %}
+                    <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                {% endif %}
+                <span>{{ message }}</span>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600 text-xs ml-4">✕</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Body Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 text-slate-500 text-xs py-5 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-shield-halved text-emerald-600"></i>
+                <span class="font-medium text-slate-700">TransitFlow Cold-Chain & Goods in Transit Registry</span>
+                <span>• Role-Isolated Sessions</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-slate-400">Powered by PayHero Lipwa Link API</span>
+                <a href="{% url 'payhero_howto' %}" class="text-emerald-600 hover:underline font-medium">Integration Guide</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===================================================================== -->
+    <!-- PRIVILEGE-AWARE DASHBOARD CHATBOT WIDGET -->
+    <!-- ===================================================================== -->
+    {% if user.is_authenticated %}
+    <div id="chatbotContainer" class="fixed bottom-6 right-6 z-50">
+        <!-- Floating Launch Button -->
+        <button id="chatbotToggleBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full p-3.5 shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-105 group relative" title="TransitFlow Assistant">
+            <i class="fa-solid fa-comments text-xl group-hover:rotate-12 transition-transform"></i>
+            <span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 border-2 border-white rounded-full"></span>
+        </button>
+
+        <!-- Chat Modal Card -->
+        <div id="chatbotBox" class="hidden absolute bottom-16 right-0 w-96 max-w-[calc(100vw-2rem)] h-[540px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300">
+            <!-- Header -->
+            <div class="bg-slate-900 text-white px-4 py-3.5 flex items-center justify-between border-b border-slate-800">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold shadow">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-semibold tracking-tight leading-tight">TransitFlow Assistant</h4>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span class="text-[10px] text-slate-300 uppercase tracking-wider font-mono">{{ session_role_label }} Clearance</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button id="chatbotClearBtn" class="text-slate-400 hover:text-slate-200 p-1 text-xs" title="Clear Chat">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                    <button id="chatbotCloseBtn" class="text-slate-400 hover:text-white p-1 text-sm" title="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Privilege Notice -->
+            <div class="bg-slate-100 px-3.5 py-1.5 text-[11px] text-slate-600 border-b border-slate-200 flex items-center justify-between">
+                <span><i class="fa-solid fa-lock text-slate-400 mr-1"></i>Queries filtered by your active role permissions</span>
+                <span class="font-mono text-emerald-600 font-semibold text-[10px]">Active</span>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 text-xs">
+                <!-- Welcome Bot Message -->
+                <div class="flex items-start space-x-2">
+                    <div class="w-6 h-6 rounded-full bg-emerald-600 flex-shrink-0 flex items-center justify-center text-white text-[10px]">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-800">
+                        <p class="font-semibold text-slate-900 mb-1">Hello, {{ user.get_full_name|default:user.username }}!</p>
+                        <p class="text-slate-600">I am your TransitFlow logistics chatbot. Ask me about products in transit, perishable cold-chain conditions, routes, or PayHero payments.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suggested Prompt Chips -->
+            <div id="chatSuggestedPrompts" class="px-3 py-2 bg-white border-t border-slate-100 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                <!-- Injected dynamically via JS -->
+            </div>
+
+            <!-- Input Bar -->
+            <div class="p-3 bg-white border-t border-slate-200">
+                <form id="chatForm" class="flex items-center space-x-2">
+                    {% csrf_token %}
+                    <input type="text" id="chatInput" placeholder="Ask about cargo, TF-..., or payments..." class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" autocomplete="off">
+                    <button type="submit" id="chatSendBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2.5 rounded-lg text-xs font-semibold shadow transition">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot & Dropdown Client Scripts -->
+    <script>
+        // Role Switcher Dropdown toggle
+        const switchBtn = document.getElementById('roleSwitchBtn');
+        const switchMenu = document.getElementById('roleSwitchMenu');
+        if (switchBtn && switchMenu) {
+            switchBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                switchMenu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', () => {
+                switchMenu.classList.add('hidden');
+            });
+        }
+
+        // Chatbot Widget Logic
+        const chatToggleBtn = document.getElementById('chatbotToggleBtn');
+        const chatBox = document.getElementById('chatbotBox');
+        const chatCloseBtn = document.getElementById('chatbotCloseBtn');
+        const chatClearBtn = document.getElementById('chatbotClearBtn');
+        const chatForm = document.getElementById('chatForm');
+        const chatInput = document.getElementById('chatInput');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatSuggested = document.getElementById('chatSuggestedPrompts');
+
+        if (chatToggleBtn && chatBox) {
+            chatToggleBtn.addEventListener('click', () => {
+                chatBox.classList.toggle('hidden');
+                if (!chatBox.classList.contains('hidden')) {
+                    chatInput.focus();
+                    if (chatSuggested.children.length === 0) {
+                        fetchSuggestedPrompts("");
+                    }
+                }
+            });
+
+            chatCloseBtn.addEventListener('click', () => {
+                chatBox.classList.add('hidden');
+            });
+
+            chatClearBtn.addEventListener('click', () => {
+                chatMessages.innerHTML = `
+                    <div class="flex items-start space-x-2">
+                        <div class="w-6 h-6 rounded-full bg-emerald-600 flex-shrink-0 flex items-center justify-center text-white text-[10px]">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-800">
+                            <p class="font-semibold text-slate-900 mb-1">Chat history reset.</p>
+                            <p class="text-slate-600">Ask a question or select an option below.</p>
+                        </div>
+                    </div>
+                `;
+                fetchSuggestedPrompts("");
+            });
+
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const msg = chatInput.value.trim();
+                if (!msg) return;
+                sendMessage(msg);
+            });
+        }
+
+        function appendUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = "flex justify-end";
+            div.innerHTML = `
+                <div class="bg-emerald-600 text-white p-3 rounded-2xl rounded-tr-none shadow-sm max-w-[85%]">
+                    <p>${escapeHtml(text)}</p>
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function appendBotMessage(markdownText) {
+            const div = document.createElement('div');
+            div.className = "flex items-start space-x-2";
+            div.innerHTML = `
+                <div class="w-6 h-6 rounded-full bg-emerald-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] mt-1">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-800 leading-relaxed prose prose-xs">
+                    ${formatBotReply(markdownText)}
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function appendLoadingIndicator() {
+            const id = 'chatLoading_' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = "flex items-start space-x-2";
+            div.innerHTML = `
+                <div class="w-6 h-6 rounded-full bg-slate-300 flex-shrink-0 flex items-center justify-center text-white text-[10px]">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-slate-200 p-2.5 rounded-2xl rounded-tl-none text-slate-500 text-xs flex items-center space-x-1.5">
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return id;
+        }
+
+        function removeLoadingIndicator(id) {
+            const elem = document.getElementById(id);
+            if (elem) elem.remove();
+        }
+
+        function sendMessage(text) {
+            appendUserMessage(text);
+            chatInput.value = '';
+            const loadingId = appendLoadingIndicator();
+
+            fetch("{% url 'chatbot_message_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie('csrftoken')
+                },
+                body: JSON.stringify({ message: text })
+            })
+            .then(res => res.json())
+            .then(data => {
+                removeLoadingIndicator(loadingId);
+                appendBotMessage(data.reply);
+                updateSuggestedPrompts(data.suggested_prompts || []);
+            })
+            .catch(err => {
+                removeLoadingIndicator(loadingId);
+                appendBotMessage("⚠️ Sorry, unable to retrieve response at the moment.");
+            });
+        }
+
+        function fetchSuggestedPrompts() {
+            fetch("{% url 'chatbot_message_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie('csrftoken')
+                },
+                body: JSON.stringify({ message: "" })
+            })
+            .then(res => res.json())
+            .then(data => {
+                updateSuggestedPrompts(data.suggested_prompts || []);
+            });
+        }
+
+        function updateSuggestedPrompts(prompts) {
+            chatSuggested.innerHTML = '';
+            prompts.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = "text-[10px] bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 border border-slate-200 px-2 py-1 rounded-full whitespace-nowrap transition";
+                btn.innerText = p;
+                btn.onclick = () => sendMessage(p);
+                chatSuggested.appendChild(btn);
+            });
+        }
+
+        function formatBotReply(text) {
+            if (!text) return "";
+            // Quick format for markdown headers, bold, bullets
+            let html = text
+                .replace(/^### (.*$)/gim, '<h4 class="font-bold text-slate-900 text-xs mt-1 mb-0.5">$1</h4>')
+                .replace(/^#### (.*$)/gim, '<h5 class="font-semibold text-slate-800 text-[11px] mt-1 mb-0.5">$1</h5>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
+                .replace(/`([^`]+)`/g, '<code class="bg-slate-100 text-emerald-800 px-1 py-0.5 rounded font-mono text-[10px]">$1</code>')
+                .replace(/^\• (.*$)/gim, '<div class="flex items-start space-x-1 my-0.5"><span class="text-emerald-500 mr-1">•</span><span>$1</span></div>')
+                .replace(/\n\n/g, '<div class="h-1.5"></div>')
+                .replace(/\n/g, '<br>');
+            return html;
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+    {% endif %}
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block title %}Driver Transit Route Portal | TransitFlow{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Driver Portal Top Header -->
+    <div class="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white p-6 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-2">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">
+                    <i class="fa-solid fa-truck text-emerald-200 mr-1.5"></i>Highway Transit Operator
+                </span>
+                <span class="text-xs text-emerald-200">• Active 12-Hour Road Shift</span>
+            </div>
+            <h1 class="text-2xl font-bold mt-1">Transit Route & Delivery Terminal</h1>
+            <p class="text-xs text-emerald-100 max-w-2xl">Log route milestones, report checkpoint arrivals, verify cold-chain trailer conditions, and confirm final recipient delivery.</p>
+        </div>
+        <div class="text-right sm:border-l sm:border-emerald-600/50 sm:pl-6">
+            <div class="text-xs text-emerald-200">Vehicle Assigned:</div>
+            <div class="text-base font-bold font-mono tracking-wider">{{ vehicle_plate }}</div>
+            <div class="text-[10px] text-emerald-300 mt-0.5">Driver ID: #DRV-{{ user.id }} • {{ user.get_full_name|default:user.username }}</div>
+        </div>
+    </div>
+
+    <!-- Active In-Transit Assignments -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-sm text-slate-900 flex items-center">
+                <i class="fa-solid fa-route text-emerald-600 mr-2"></i>Active Consignments on Vehicle Manifest
+            </h3>
+            <span class="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2.5 py-0.5 rounded-full">
+                {{ active_shipments|length }} active run(s)
+            </span>
+        </div>
+
+        <div class="p-6 space-y-4">
+            {% for shipment in active_shipments %}
+            <div class="border border-slate-200 rounded-xl p-5 hover:border-emerald-300 transition shadow-sm bg-slate-50/50">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg {% if shipment.has_perishable_items %}bg-blue-600{% else %}bg-slate-800{% endif %} text-white flex items-center justify-center font-bold">
+                            {% if shipment.has_perishable_items %}
+                            <i class="fa-solid fa-snowflake"></i>
+                            {% else %}
+                            <i class="fa-solid fa-box"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-mono font-bold text-slate-900">{{ shipment.tracking_number }}</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold border {{ shipment.status_badge_class }}">
+                                    {{ shipment.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                {{ shipment.origin }} ➔ <strong class="text-slate-800">{{ shipment.destination }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button onclick="openDriverUpdateModal('{{ shipment.tracking_number }}', '{{ shipment.current_location }}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-location-arrow"></i>
+                            <span>Update Route & Checkpoint</span>
+                        </button>
+                        <a href="{% url 'shipment_detail' shipment.tracking_number %}" class="bg-white hover:bg-slate-100 text-slate-700 text-xs px-3 py-2 rounded-lg border border-slate-200 transition">
+                            Details
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Manifest Items & Requirements -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 text-xs">
+                    <div>
+                        <div class="text-slate-400 text-[10px] uppercase font-semibold">Cargo Items</div>
+                        <div class="text-slate-800 font-medium mt-0.5">
+                            {% for item in shipment.items.all %}
+                                <div>• {{ item.quantity }}x {{ item.product.name }} ({{ item.get_package_type_display }})</div>
+                            {% empty %}
+                                <div class="text-slate-400">Standard Freight</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-slate-400 text-[10px] uppercase font-semibold">Temperature & Handling Requirements</div>
+                        <div class="mt-0.5">
+                            {% if shipment.has_perishable_items %}
+                            <span class="inline-flex items-center text-blue-700 font-semibold bg-blue-100 px-2 py-0.5 rounded text-[11px]">
+                                <i class="fa-solid fa-snowflake mr-1"></i>Reefer Target: 2.0°C - 6.0°C
+                            </span>
+                            <div class="text-[10px] text-slate-500 mt-1">Keep onboard refrigeration powered on throughout transit.</div>
+                            {% else %}
+                            <span class="text-slate-600">Standard dry transport. Secure straps on turns.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-slate-400 text-[10px] uppercase font-semibold">Current Reported Checkpoint</div>
+                        <div class="text-slate-800 font-semibold mt-0.5 flex items-center">
+                            <i class="fa-solid fa-location-dot text-emerald-600 mr-1.5"></i>
+                            <span>{{ shipment.current_location }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-10 text-slate-400 text-xs">
+                <i class="fa-solid fa-road text-3xl mb-2 text-slate-300"></i>
+                <p>No active transit shipments currently assigned to your vehicle manifest.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Completed Deliveries History -->
+    {% if delivered_shipments %}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-sm text-slate-900 mb-3 flex items-center">
+            <i class="fa-solid fa-clock-rotate-left text-slate-500 mr-2"></i>Completed Delivery Sign-offs
+        </h3>
+        <div class="space-y-2 text-xs">
+            {% for s in delivered_shipments %}
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                <div class="flex items-center space-x-2">
+                    <span class="font-mono font-bold text-slate-800">{{ s.tracking_number }}</span>
+                    <span class="text-slate-500">{{ s.origin }} ➔ {{ s.destination }}</span>
+                </div>
+                <span class="text-emerald-700 font-semibold flex items-center">
+                    <i class="fa-solid fa-circle-check mr-1"></i>Delivered
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: DRIVER ROUTE UPDATE & CHECKPOINT LOGGING -->
+<!-- ========================================================================= -->
+<div id="driverUpdateModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-road text-emerald-600 mr-2"></i>Log Highway Transit Checkpoint
+            </h3>
+            <button onclick="document.getElementById('driverUpdateModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form id="driverUpdateForm" method="POST" action="" class="space-y-4">
+            {% csrf_token %}
+            
+            <div class="text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                Consignment: <strong id="driverModalTracking" class="font-mono text-slate-900"></strong>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Transit Milestone Event *</label>
+                <select name="event_type" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                    <option value="CHECKPOINT" selected>Highway Checkpoint Passed</option>
+                    <option value="DEPARTURE">Departed Terminal / Transit Hub</option>
+                    <option value="TEMP_LOG">Reefer Trailer Temperature Check</option>
+                    <option value="DELAY_REPORT">Delay Encountered (Traffic/Mechanical)</option>
+                    <option value="DELIVERY_CONFIRMED">Delivery Destination Reached & Signed</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Current Geographic Location *</label>
+                <input type="text" name="location" id="driverModalLocation" required placeholder="e.g. Mtito Andei Checkpoint, Highway A109" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Consignment Status</label>
+                    <select name="new_status" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                        <option value="IN_TRANSIT" selected>In Transit (On Highway)</option>
+                        <option value="AT_CHECKPOINT">At Transit Checkpoint</option>
+                        <option value="ARRIVED_DESTINATION">Arrived Destination Hub</option>
+                        <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+                        <option value="DELIVERED">Delivered & Signed</option>
+                        <option value="DELAYED">Delayed</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Trailer Temp (°C)</label>
+                    <input type="number" step="0.1" name="temperature_celsius" placeholder="e.g. 4.5" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Driver Transit Remarks / Delay Reason</label>
+                <textarea name="remarks" rows="2" placeholder="e.g. Highway clear, trailer refrigeration operating nominally." class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg"></textarea>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('driverUpdateModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">Cancel</button>
+                <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow">Record Checkpoint</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openDriverUpdateModal(trackingNum, currentLocation) {
+    document.getElementById('driverModalTracking').innerText = trackingNum;
+    document.getElementById('driverModalLocation').value = currentLocation;
+    document.getElementById('driverUpdateForm').action = "/shipments/" + trackingNum + "/log-event/";
+    document.getElementById('driverUpdateModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}

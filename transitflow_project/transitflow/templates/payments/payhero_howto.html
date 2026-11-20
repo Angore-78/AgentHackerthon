@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+
+{% block title %}How to Integrate PayHero API & Lipwa Link | TransitFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-6 space-y-8">
+
+    <!-- Top Hero Banner -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-8 rounded-3xl shadow-sm border border-slate-800">
+        <div class="flex items-center space-x-2 mb-3">
+            <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <i class="fa-solid fa-graduation-cap mr-1.5"></i>Developer Integration Manual
+            </span>
+            <span class="text-xs text-slate-400 font-mono">PayHero Kenya API v2</span>
+        </div>
+        <h1 class="text-3xl font-extrabold tracking-tight">Integrating PayHero's Lipwa Link & STK Push</h1>
+        <p class="text-sm text-slate-300 mt-2 max-w-2xl leading-relaxed">
+            A comprehensive, step-by-step developer guide for connecting PayHero's payment infrastructure to your logistics platform for collecting transit fees via M-Pesa.
+        </p>
+    </div>
+
+    <!-- Architecture Visual Flow -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-bold text-sm text-slate-900 uppercase tracking-wider flex items-center">
+            <i class="fa-solid fa-diagram-project text-emerald-600 mr-2"></i>PayHero Integration Architecture
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div class="font-bold text-slate-800 flex items-center"><span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] mr-1.5 font-bold">1</span> Consignor Checkout</div>
+                <p class="text-slate-500 text-[11px]">Client initiates payment for shipment delivery fees.</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div class="font-bold text-slate-800 flex items-center"><span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] mr-1.5 font-bold">2</span> Lipwa Link / STK</div>
+                <p class="text-slate-500 text-[11px]">Dynamic link generated with reference or direct STK push to mobile phone.</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div class="font-bold text-slate-800 flex items-center"><span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] mr-1.5 font-bold">3</span> M-Pesa Settlement</div>
+                <p class="text-slate-500 text-[11px]">Customer enters PIN and authorizes transaction via Safaricom M-Pesa.</p>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div class="font-bold text-slate-800 flex items-center"><span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] mr-1.5 font-bold">4</span> Webhook Callback</div>
+                <p class="text-slate-500 text-[11px]">PayHero notifies endpoint, reconciling shipment as PAID automatically.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 1: Account Setup -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow">1</div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Create a PayHero Kenya Developer Account</h3>
+                <p class="text-xs text-slate-500">Sign up and obtain your authentication credentials.</p>
+            </div>
+        </div>
+
+        <div class="text-xs text-slate-600 space-y-2 leading-relaxed pl-11">
+            <p>1. Navigate to <a href="https://payhero.co.ke" target="_blank" rel="noopener noreferrer" class="text-emerald-600 font-semibold underline">payhero.co.ke</a> and register for a business or developer account.</p>
+            <p>2. Complete the standard merchant verification and navigate to <strong>Settings ➔ API Keys</strong>.</p>
+            <p>3. Generate your <strong>API Username</strong> and <strong>API Password</strong>. PayHero uses these credentials for HTTP Basic Authentication.</p>
+        </div>
+    </div>
+
+    <!-- Step 2: Channel ID & Lipwa Link Configuration -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow">2</div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Link your M-Pesa Channel & Configure Lipwa Link Slug</h3>
+                <p class="text-xs text-slate-500">Attach your Safaricom Paybill or Till Number to receive disbursements.</p>
+            </div>
+        </div>
+
+        <div class="text-xs text-slate-600 space-y-3 leading-relaxed pl-11">
+            <p>1. In the PayHero Dashboard, go to <strong>Channels ➔ Add Channel</strong>.</p>
+            <p>2. Select your channel type: <strong>M-Pesa Buy Goods Till</strong> or <strong>Paybill Number</strong>.</p>
+            <p>3. Once connected, note down your numeric <strong>Channel ID</strong> (e.g. <code class="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">133</code>).</p>
+            <p>4. In <strong>Lipwa Links</strong>, claim your custom branded link handle (e.g. <code class="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">lipwa.link/transitflow</code>).</p>
+        </div>
+    </div>
+
+    <!-- Step 3: Dynamic Lipwa Link Construction -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow">3</div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Constructing Dynamic Lipwa Links with Query Parameters</h3>
+                <p class="text-xs text-slate-500">How TransitFlow generates seamless pre-filled checkout URLs.</p>
+            </div>
+        </div>
+
+        <div class="text-xs text-slate-600 space-y-3 pl-11">
+            <p>Instead of requiring customers to manually type invoice amounts or till numbers, construct a dynamic URL format:</p>
+            
+            <div class="bg-slate-900 text-emerald-400 p-3.5 rounded-xl font-mono text-[11px] overflow-x-auto">
+https://lipwa.link/{account_slug}?amount={amount}&amp;phone={phone}&amp;name={name}&amp;channel_id={channel_id}&amp;reference={reference}&amp;success_url={success}&amp;failed_url={failed}
+            </div>
+
+            <!-- Parameters Table -->
+            <div class="border border-slate-200 rounded-xl overflow-hidden mt-2">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold text-[10px]">
+                        <tr>
+                            <th class="p-2.5">Parameter</th>
+                            <th class="p-2.5">Type</th>
+                            <th class="p-2.5">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700 text-[11px]">
+                        <tr>
+                            <td class="p-2.5 font-mono font-bold text-emerald-700">amount</td>
+                            <td class="p-2.5 text-slate-500">Integer / Float</td>
+                            <td class="p-2.5">The required payment amount in KES (e.g. 3500).</td>
+                        </tr>
+                        <tr>
+                            <td class="p-2.5 font-mono font-bold text-emerald-700">phone</td>
+                            <td class="p-2.5 text-slate-500">String</td>
+                            <td class="p-2.5">Pre-fills customer's mobile number (e.g. 254712345678).</td>
+                        </tr>
+                        <tr>
+                            <td class="p-2.5 font-mono font-bold text-emerald-700">name</td>
+                            <td class="p-2.5 text-slate-500">String</td>
+                            <td class="p-2.5">Customer's name displayed on checkout header.</td>
+                        </tr>
+                        <tr>
+                            <td class="p-2.5 font-mono font-bold text-emerald-700">channel_id</td>
+                            <td class="p-2.5 text-slate-500">Integer</td>
+                            <td class="p-2.5">Directs funds into the specific Till / Paybill.</td>
+                        </tr>
+                        <tr>
+                            <td class="p-2.5 font-mono font-bold text-emerald-700">reference</td>
+                            <td class="p-2.5 text-slate-500">String</td>
+                            <td class="p-2.5">Unique transaction code (e.g. PAY-TF-98A1) used for automated reconciliation.</td>
+                        </tr>
+                        <tr>
+                            <td class="p-2.5 font-mono font-bold text-emerald-700">success_url</td>
+                            <td class="p-2.5 text-slate-500">URL</td>
+                            <td class="p-2.5">Where the customer is redirected following successful M-Pesa approval.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4: Direct STK Push via REST API -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow">4</div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Programmatic STK Push via PayHero API v2</h3>
+                <p class="text-xs text-slate-500">Directly dispatches the Safaricom PIN prompt to the customer's device.</p>
+            </div>
+        </div>
+
+        <div class="text-xs text-slate-600 space-y-3 pl-11">
+            <p><strong>Endpoint:</strong> <code class="bg-slate-100 text-slate-900 px-2 py-0.5 rounded font-mono">POST https://backend.payhero.co.ke/api/v2/payments</code></p>
+            <p><strong>Headers:</strong></p>
+            <div class="bg-slate-900 text-slate-300 p-3 rounded-xl font-mono text-[11px]">
+Authorization: Basic &lt;base64_encoded(api_username:api_password)&gt;<br>
+Content-Type: application/json
+            </div>
+
+            <p><strong>Python / Django Implementation Code:</strong></p>
+            <div class="bg-slate-900 text-emerald-300 p-4 rounded-xl font-mono text-[11px] overflow-x-auto leading-relaxed">
+<pre>import requests
+import base64
+
+def trigger_payhero_stk(amount, phone_number, channel_id, external_reference, callback_url):
+    auth_str = f"{settings.PAYHERO_USERNAME}:{settings.PAYHERO_PASSWORD}"
+    b64_auth = base64.b64encode(auth_str.encode()).decode()
+    
+    payload = {
+        "amount": int(amount),
+        "phone_number": phone_number,       # Format: 2547XXXXXXXX
+        "channel_id": int(channel_id),       # e.g. 133
+        "provider": "m-pesa",
+        "external_reference": external_reference,
+        "callback_url": callback_url
+    }
+    
+    headers = {
+        "Authorization": f"Basic {b64_auth}",
+        "Content-Type": "application/json"
+    }
+    
+    response = requests.post(
+        "https://backend.payhero.co.ke/api/v2/payments",
+        json=payload,
+        headers=headers,
+        timeout=15
+    )
+    return response.json()</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 5: Webhook Callback & Reconciliation -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow">5</div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Webhook Handling & Real-time Reconciliation</h3>
+                <p class="text-xs text-slate-500">Auto-marks shipment as PAID when PayHero sends payment notifications.</p>
+            </div>
+        </div>
+
+        <div class="text-xs text-slate-600 space-y-3 pl-11">
+            <p>Register your callback URL in TransitFlow settings (e.g. <code class="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono">https://yourdomain.com/payments/callback/</code>). PayHero will deliver a POST notification containing:</p>
+
+            <div class="bg-slate-900 text-emerald-300 p-4 rounded-xl font-mono text-[11px] overflow-x-auto">
+<pre>{
+  "status": "Success",
+  "external_reference": "PAY-TF-A87BC1",
+  "amount": 3500,
+  "MpesaReceiptNumber": "QKB8921X3L",
+  "phone": "254712345678",
+  "channel_id": 133,
+  "timestamp": "2026-11-17T07:30:00"
+}</pre>
+            </div>
+
+            <p>TransitFlow matches <code class="font-mono text-emerald-700">external_reference</code> with the pending <code class="font-mono">PaymentTransaction</code>, extracts the M-Pesa receipt code, marks the transaction as <strong>SUCCESS</strong>, and flips <code class="font-mono">Shipment.is_paid = True</code>.</p>
+        </div>
+    </div>
+
+    <!-- Step 6: Testing & Sandbox Simulator -->
+    <div class="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 p-6 rounded-2xl shadow-sm space-y-3">
+        <h3 class="text-sm font-bold text-amber-900 uppercase flex items-center">
+            <i class="fa-solid fa-flask text-amber-600 mr-2"></i>Testing With the Built-In Sandbox Simulator
+        </h3>
+        <p class="text-xs text-amber-800 leading-relaxed">
+            During local development or evaluation, you do not need real M-Pesa funds. TransitFlow includes a <strong>Sandbox Simulator</strong> toggle:
+        </p>
+        <ul class="text-xs text-amber-900 space-y-1 list-disc list-inside">
+            <li>Whenever a payment is initiated, click <strong>"Simulate M-Pesa Payment Success"</strong> on the checkout or detail screen.</li>
+            <li>The system generates a realistic Safaricom M-Pesa code (e.g. <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-amber-300">QKB718942A</code>) and executes the full reconciliation loop immediately.</li>
+            <li>When ready for live deployment, navigate to <a href="{% url 'configure_payhero' %}" class="font-bold underline text-amber-900">API Settings</a> and switch the toggle to <strong>Live Production</strong>.</li>
+        </ul>
+    </div>
+
+</div>
+{% endblock %}
