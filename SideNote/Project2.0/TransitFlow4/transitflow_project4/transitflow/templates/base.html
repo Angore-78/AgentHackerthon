@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TransitFlow{% endblock %} | Goods in Transit & Cold-Chain Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        perishable: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-subtle {
+            animation: pulse-subtle 2.5s infinite;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- Logo & Brand -->
+                <div class="flex items-center space-x-3">
+                    <a href="{% url 'portal_redirect' %}" class="flex items-center space-x-2 text-white hover:text-emerald-400 transition-colors">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow">
+                            <i class="fa-solid fa-truck-fast text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="text-xl font-bold tracking-tight">Transit<span class="text-emerald-400">Flow</span></span>
+                            <span class="block text-[10px] tracking-wider text-slate-400 font-mono uppercase">Logistics & Cold-Chain</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Navigation Links -->
+                {% if user.is_authenticated %}
+                <nav class="hidden md:flex items-center space-x-1 text-sm font-medium">
+                    <!-- Current Role Portal Link -->
+                    <a href="{% url portal_url_name %}" class="px-3 py-2 rounded-md hover:bg-slate-800 text-slate-200 hover:text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-table-columns text-emerald-400"></i>
+                        <span>{{ session_role_label }} Portal</span>
+                    </a>
+
+                    <!-- Payments Section -->
+                    <a href="{% url 'payments_index' %}" class="px-3 py-2 rounded-md hover:bg-slate-800 text-slate-200 hover:text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-wallet text-amber-400"></i>
+                        <span>Payments & Lipwa Link</span>
+                    </a>
+
+                    {% if is_manager %}
+                    <a href="{% url 'manage_rates' %}" class="px-3 py-2 rounded-md hover:bg-slate-800 text-slate-200 hover:text-white flex items-center space-x-1.5">
+                        <i class="fa-solid fa-tags text-indigo-400"></i>
+                        <span>Goods Rates & Tariffs</span>
+                    </a>
+                    <a href="{% url 'configure_payhero' %}" class="px-3 py-2 rounded-md hover:bg-slate-800 text-slate-300 hover:text-white flex items-center space-x-1.5 text-xs">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>API Config</span>
+                    </a>
+                    {% endif %}
+                </nav>
+                {% endif %}
+
+                <!-- Right Side: Session Role, Switcher & User Menu -->
+                <div class="flex items-center space-x-3">
+                    {% if user.is_authenticated %}
+                        {% if user.is_client %}
+                        <!-- Client Available Credit Balance Indicator -->
+                        <div class="hidden sm:flex items-center space-x-1.5 bg-emerald-950/70 border border-emerald-500/40 px-3 py-1 rounded-lg text-xs text-emerald-300 shadow-inner">
+                            <i class="fa-solid fa-coins text-amber-400"></i>
+                            <span>Credit: <strong class="text-white font-mono">KES {{ user.credit_balance|default:"0.00" }}</strong></span>
+                        </div>
+                        {% endif %}
+
+                        <!-- Role Badge & Session Indicator -->
+                        <div class="hidden sm:flex flex-col items-end text-xs">
+                            <div class="flex items-center space-x-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                <span class="px-2 py-0.5 rounded font-semibold {{ user.role_badge_class }}">
+                                    {{ session_role_label }}
+                                </span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 mt-0.5 font-mono">
+                                <i class="fa-regular fa-clock mr-1"></i>Shift Session
+                            </span>
+                        </div>
+
+                        <!-- Quick Role Switcher Dropdown (Demo Evaluator Tool) -->
+                        <div class="relative" id="roleSwitchContainer">
+                            <button id="roleSwitchBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-md flex items-center space-x-1 border border-slate-700 transition" title="Switch Portal Persona for Testing">
+                                <i class="fa-solid fa-arrows-rotate text-emerald-400"></i>
+                                <span class="hidden lg:inline">Switch Role</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+                            </button>
+                            <div id="roleSwitchMenu" class="hidden absolute right-0 mt-2 w-52 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 py-1.5 z-50 text-xs">
+                                <div class="px-3 py-1 font-semibold text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-100">
+                                    Demo Role Switcher
+                                </div>
+                                <a href="{% url 'quick_switch_role' 'MANAGER' %}" class="px-3 py-2 hover:bg-purple-50 flex items-center justify-between text-purple-900">
+                                    <span class="font-medium"><i class="fa-solid fa-user-shield text-purple-600 mr-2"></i>Manager</span>
+                                    {% if user_role == 'MANAGER' %}<i class="fa-solid fa-check text-purple-600"></i>{% endif %}
+                                </a>
+                                <a href="{% url 'quick_switch_role' 'PORTER' %}" class="px-3 py-2 hover:bg-amber-50 flex items-center justify-between text-amber-900">
+                                    <span class="font-medium"><i class="fa-solid fa-dolly text-amber-600 mr-2"></i>Porter</span>
+                                    {% if user_role == 'PORTER' %}<i class="fa-solid fa-check text-amber-600"></i>{% endif %}
+                                </a>
+                                <a href="{% url 'quick_switch_role' 'DRIVER' %}" class="px-3 py-2 hover:bg-emerald-50 flex items-center justify-between text-emerald-900">
+                                    <span class="font-medium"><i class="fa-solid fa-truck text-emerald-600 mr-2"></i>Driver</span>
+                                    {% if user_role == 'DRIVER' %}<i class="fa-solid fa-check text-emerald-600"></i>{% endif %}
+                                </a>
+                                <a href="{% url 'quick_switch_role' 'CLIENT' %}" class="px-3 py-2 hover:bg-blue-50 flex items-center justify-between text-blue-900">
+                                    <span class="font-medium"><i class="fa-solid fa-building-user text-blue-600 mr-2"></i>Client</span>
+                                    {% if user_role == 'CLIENT' %}<i class="fa-solid fa-check text-blue-600"></i>{% endif %}
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- User Profile & Logout -->
+                        <div class="flex items-center space-x-2 pl-2 border-l border-slate-700">
+                            <span class="text-xs text-slate-300 font-medium hidden md:inline">
+                                {{ user.username }}
+                            </span>
+                            <a href="{% url 'logout' %}" class="text-slate-400 hover:text-rose-400 text-sm p-1.5 transition" title="Log Out">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="text-sm font-semibold text-emerald-400 hover:text-emerald-300">Log In</a>
+                        <a href="{% url 'register' %}" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded shadow">Register</a>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- Global Alert / Messages Container -->
+    {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
+        {% for message in messages %}
+        <div class="p-3 mb-2 rounded-lg text-sm flex items-start justify-between shadow-sm border {% if message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-800{% endif %}">
+            <div class="flex items-center space-x-2">
+                {% if message.tags == 'error' %}
+                    <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+                {% elif message.tags == 'warning' %}
+                    <i class="fa-solid fa-bell text-amber-500"></i>
+                {% else %}
+                    <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                {% endif %}
+                <span>{{ message }}</span>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600 text-xs ml-4">✕</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Body Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 text-slate-500 text-xs py-5 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-shield-halved text-emerald-600"></i>
+                <span class="font-medium text-slate-700">TransitFlow Cold-Chain & Goods in Transit Registry</span>
+                <span>• Role-Isolated Sessions</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-slate-400">Powered by PayHero Lipwa Link API</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===================================================================== -->
+    <!-- PRIVILEGE-AWARE DASHBOARD CHATBOT WIDGET -->
+    <!-- ===================================================================== -->
+    {% if user.is_authenticated %}
+    <div id="chatbotContainer" class="fixed bottom-6 right-6 z-50 flex items-center space-x-2">
+        <!-- Floating Voice AI Button (Accessibility for Blind / Paralyzed Users) -->
+        <button id="voiceAiFloatBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-3.5 shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-105 group relative" title="Voice AI Assistant for Blind & Paralyzed Users (Press Alt+V for Hands-Free Mode)" aria-label="Toggle Voice AI Assistant">
+            <i class="fa-solid fa-microphone text-xl group-hover:scale-110 transition-transform"></i>
+            <span id="voiceFloatPulse" class="hidden absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full animate-ping"></span>
+            <span id="voiceFloatBadge" class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-slate-400 border-2 border-white rounded-full"></span>
+        </button>
+
+        <!-- Floating Launch Button -->
+        <button id="chatbotToggleBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full p-3.5 shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-105 group relative" title="TransitFlow Assistant">
+            <i class="fa-solid fa-comments text-xl group-hover:rotate-12 transition-transform"></i>
+            <span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 border-2 border-white rounded-full"></span>
+        </button>
+
+        <!-- Chat Modal Card -->
+        <div id="chatbotBox" class="hidden absolute bottom-16 right-0 w-96 max-w-[calc(100vw-2rem)] h-[560px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300">
+            <!-- Header -->
+            <div class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold shadow">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-semibold tracking-tight leading-tight">TransitFlow Assistant</h4>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span class="text-[10px] text-slate-300 uppercase tracking-wider font-mono">{{ session_role_label }} Clearance</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1.5">
+                    <!-- Voice AI Toggle Button in Header -->
+                    <button id="voiceAiHeaderBtn" class="flex items-center space-x-1 bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-full text-[10px] font-semibold shadow transition" aria-label="Toggle Hands-Free Voice AI" title="Hands-Free Voice AI (Alt+V)">
+                        <i class="fa-solid fa-microphone text-[10px]" id="voiceHeaderMicIcon"></i>
+                        <span id="voiceHeaderBtnLabel">Voice AI: Off</span>
+                    </button>
+                    <button id="chatbotClearBtn" class="text-slate-400 hover:text-slate-200 p-1 text-xs" title="Clear Chat">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                    <button id="chatbotCloseBtn" class="text-slate-400 hover:text-white p-1 text-sm" title="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Voice AI Live Audio Status Banner -->
+            <div id="voiceLiveBanner" class="hidden bg-indigo-950 text-indigo-100 px-3.5 py-2 text-[11px] border-b border-indigo-900 flex items-center justify-between transition-all">
+                <div class="flex items-center space-x-2 truncate">
+                    <span id="voiceWaveIndicator" class="flex items-center space-x-0.5">
+                        <span class="w-1 h-3 bg-emerald-400 rounded-full animate-pulse"></span>
+                        <span class="w-1 h-4 bg-emerald-400 rounded-full animate-pulse" style="animation-delay: 0.15s"></span>
+                        <span class="w-1 h-2 bg-emerald-400 rounded-full animate-pulse" style="animation-delay: 0.3s"></span>
+                    </span>
+                    <span id="voiceStatusText" class="font-medium text-emerald-300 truncate">Listening... Speak now</span>
+                </div>
+                <button id="voiceLiveStopBtn" class="text-indigo-300 hover:text-white text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-indigo-900/60 rounded border border-indigo-700/50">
+                    Mute
+                </button>
+            </div>
+
+            <!-- Privilege Notice -->
+            <div class="bg-slate-100 px-3.5 py-1.5 text-[11px] text-slate-600 border-b border-slate-200 flex items-center justify-between">
+                <span><i class="fa-solid fa-universal-access text-indigo-600 mr-1"></i>Hands-Free Voice AI Enabled (Alt+V)</span>
+                <span class="font-mono text-emerald-600 font-semibold text-[10px]">Active</span>
+            </div>
+
+            <!-- ARIA Screen Reader Status Announcement -->
+            <div id="voiceAriaStatus" class="sr-only" aria-live="assertive" role="status"></div>
+
+            <!-- Messages Area -->
+            <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 text-xs">
+                <!-- Welcome Bot Message -->
+                <div class="flex items-start space-x-2">
+                    <div class="w-6 h-6 rounded-full bg-emerald-600 flex-shrink-0 flex items-center justify-center text-white text-[10px]">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-800">
+                        <p class="font-semibold text-slate-900 mb-1">Hello, {{ user.get_full_name|default:user.username }}!</p>
+                        <p class="text-slate-600">I am your TransitFlow logistics chatbot. Ask me about products in transit, perishable cold-chain conditions, or make PayHero payments. You can talk to me hands-free anytime using the Voice AI button or by pressing <strong>Alt+V</strong>.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suggested Prompt Chips -->
+            <div id="chatSuggestedPrompts" class="px-3 py-2 bg-white border-t border-slate-100 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                <!-- Injected dynamically via JS -->
+            </div>
+
+            <!-- Input Bar -->
+            <div class="p-3 bg-white border-t border-slate-200">
+                <form id="chatForm" class="flex items-center space-x-2">
+                    {% csrf_token %}
+                    <input type="text" id="chatInput" placeholder="Ask about cargo, TF-..., or say 'Pay my shipment'..." class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" autocomplete="off">
+                    <button type="button" id="chatMicInputBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-lg text-xs font-semibold shadow transition" title="Voice AI Mic (Alt+V)" aria-label="Speak into Microphone">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+                    <button type="submit" id="chatSendBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2.5 rounded-lg text-xs font-semibold shadow transition" aria-label="Send Message">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot & Dropdown Client Scripts -->
+    <script>
+        // Role Switcher Dropdown toggle
+        const switchBtn = document.getElementById('roleSwitchBtn');
+        const switchMenu = document.getElementById('roleSwitchMenu');
+        if (switchBtn && switchMenu) {
+            switchBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                switchMenu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', () => {
+                switchMenu.classList.add('hidden');
+            });
+        }
+
+        // DOM Elements
+        const chatToggleBtn = document.getElementById('chatbotToggleBtn');
+        const chatBox = document.getElementById('chatbotBox');
+        const chatCloseBtn = document.getElementById('chatbotCloseBtn');
+        const chatClearBtn = document.getElementById('chatbotClearBtn');
+        const chatForm = document.getElementById('chatForm');
+        const chatInput = document.getElementById('chatInput');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatSuggested = document.getElementById('chatSuggestedPrompts');
+
+        // Voice AI DOM Elements
+        const voiceAiFloatBtn = document.getElementById('voiceAiFloatBtn');
+        const voiceAiHeaderBtn = document.getElementById('voiceAiHeaderBtn');
+        const voiceFloatBadge = document.getElementById('voiceFloatBadge');
+        const voiceFloatPulse = document.getElementById('voiceFloatPulse');
+        const voiceHeaderBtnLabel = document.getElementById('voiceHeaderBtnLabel');
+        const voiceHeaderMicIcon = document.getElementById('voiceHeaderMicIcon');
+        const voiceLiveBanner = document.getElementById('voiceLiveBanner');
+        const voiceStatusText = document.getElementById('voiceStatusText');
+        const voiceLiveStopBtn = document.getElementById('voiceLiveStopBtn');
+        const chatMicInputBtn = document.getElementById('chatMicInputBtn');
+        const voiceAriaStatus = document.getElementById('voiceAriaStatus');
+
+        // Voice AI State
+        let isVoiceAiActive = false;
+        let isListening = false;
+        let isSpeaking = false;
+        let isWaitingForPaymentPin = false;
+        let paymentPollInterval = null;
+        let recognition = null;
+        let audioCtx = null;
+
+        // Initialize Web Audio API Synthesizer for Acoustic Accessibility Earcons
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) audioCtx = new AudioCtx();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playChime(type) {
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+
+                if (type === 'listen') {
+                    // Ascending gentle double chime (C5 -> E5)
+                    const osc1 = ctx.createOscillator();
+                    const osc2 = ctx.createOscillator();
+                    const gain1 = ctx.createGain();
+                    const gain2 = ctx.createGain();
+
+                    gain1.gain.setValueAtTime(0.12, now);
+                    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc1.frequency.setValueAtTime(523.25, now);
+                    osc1.connect(gain1);
+                    gain1.connect(ctx.destination);
+                    osc1.start(now);
+                    osc1.stop(now + 0.25);
+
+                    gain2.gain.setValueAtTime(0.12, now + 0.12);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+                    osc2.frequency.setValueAtTime(659.25, now + 0.12);
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.start(now + 0.12);
+                    osc2.stop(now + 0.38);
+                } else if (type === 'sent') {
+                    // Two-tone prompt dispatch tone (G4 -> C5)
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.frequency.setValueAtTime(392.00, now);
+                    osc.frequency.exponentialRampToValueAtTime(523.25, now + 0.2);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'success') {
+                    // Joyous 4-note arpeggio (C5 -> E5 -> G5 -> C6)
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        const t = now + (idx * 0.1);
+                        gain.gain.setValueAtTime(0.15, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                        osc.frequency.setValueAtTime(freq, t);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(t);
+                        osc.stop(t + 0.3);
+                    });
+                }
+            } catch(e) {
+                console.log('Chime playback bypassed:', e);
+            }
+        }
+
+        // Initialize Speech Recognition (STT)
+        function initSpeechRecognition() {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRec) {
+                console.warn('SpeechRecognition API not available in this browser.');
+                return null;
+            }
+            const rec = new SpeechRec();
+            rec.lang = 'en-US';
+            rec.continuous = false;
+            rec.interimResults = true;
+
+            rec.onstart = () => {
+                isListening = true;
+                updateVoiceUi();
+                playChime('listen');
+                setAriaStatus("Microphone listening. Speak now.");
+            };
+
+            rec.onresult = (event) => {
+                let interim = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+                const spoken = finalTranscript || interim;
+                if (spoken && voiceStatusText) {
+                    voiceStatusText.innerText = `Hearing: "${spoken}"`;
+                }
+
+                if (finalTranscript.trim()) {
+                    isListening = false;
+                    updateVoiceUi();
+                    sendMessage(finalTranscript.trim());
+                }
+            };
+
+            rec.onerror = (event) => {
+                isListening = false;
+                updateVoiceUi();
+                if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                    console.warn('Speech recognition error:', event.error);
+                }
+                // If in hands-free voice mode and not currently speaking, re-arm after brief delay
+                if (isVoiceAiActive && !isSpeaking && !isWaitingForPaymentPin) {
+                    setTimeout(() => startListening(), 800);
+                }
+            };
+
+            rec.onend = () => {
+                isListening = false;
+                updateVoiceUi();
+                // Hands-Free continuous listening loop: auto-rearm if still active and not speaking
+                if (isVoiceAiActive && !isSpeaking && !isWaitingForPaymentPin) {
+                    setTimeout(() => startListening(), 600);
+                }
+            };
+
+            return rec;
+        }
+
+        // Speech Synthesis (TTS)
+        function speakText(text, onCompleteCallback) {
+            if (!window.speechSynthesis) {
+                if (onCompleteCallback) onCompleteCallback();
+                return;
+            }
+            window.speechSynthesis.cancel();
+
+            const cleanText = cleanMarkdownForSpeech(text);
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.lang = 'en-US';
+
+            // Pick a high-quality natural voice if available
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')));
+            if (preferredVoice) utterance.voice = preferredVoice;
+
+            utterance.onstart = () => {
+                isSpeaking = true;
+                if (recognition && isListening) {
+                    try { recognition.abort(); } catch(e){}
+                }
+                updateVoiceUi();
+                setAriaStatus(`Assistant speaking: ${cleanText}`);
+            };
+
+            utterance.onend = () => {
+                isSpeaking = false;
+                updateVoiceUi();
+                if (onCompleteCallback) onCompleteCallback();
+                // Hands-free continuous loop for paralyzed users: auto-start listening after speaking!
+                if (isVoiceAiActive && !isWaitingForPaymentPin) {
+                    setTimeout(() => startListening(), 400);
+                }
+            };
+
+            utterance.onerror = () => {
+                isSpeaking = false;
+                updateVoiceUi();
+                if (onCompleteCallback) onCompleteCallback();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function cleanMarkdownForSpeech(text) {
+            if (!text) return "";
+            return text
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                .replace(/https?:\/\/\S+/g, '')
+                .replace(/➔/g, ' to ')
+                .replace(/•/g, ', ')
+                .replace(/[🚨❄️📦💳⚠️✅👉💡🗣️]/g, '')
+                .replace(/KES/g, 'Kenyan Shillings')
+                .replace(/[*#_`~]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function setAriaStatus(message) {
+            if (voiceAriaStatus) {
+                voiceAriaStatus.innerText = message;
+            }
+        }
+
+        function startListening() {
+            if (!recognition) recognition = initSpeechRecognition();
+            if (!recognition) return;
+            if (isListening || isSpeaking) return;
+
+            try {
+                recognition.start();
+            } catch(e) {
+                // Ignore if already active
+            }
+        }
+
+        function stopListening() {
+            if (recognition) {
+                try { recognition.abort(); } catch(e){}
+            }
+            isListening = false;
+            updateVoiceUi();
+        }
+
+        function toggleVoiceAi(forceState) {
+            getAudioContext();
+            isVoiceAiActive = (forceState !== undefined) ? forceState : !isVoiceAiActive;
+
+            // Ensure chat box is visible when Voice AI is toggled on
+            if (isVoiceAiActive) {
+                chatBox.classList.remove('hidden');
+                if (chatSuggested.children.length === 0) fetchSuggestedPrompts();
+            }
+
+            updateVoiceUi();
+
+            if (isVoiceAiActive) {
+                setAriaStatus("Voice AI Assistant activated. Hands-free listening enabled. Say 'pay my balance' or ask about cargo.");
+                speakText("Voice AI Assistant activated. You can speak hands-free. Say pay my shipment, or ask about your cargo.", () => {
+                    startListening();
+                });
+            } else {
+                stopListening();
+                if (window.speechSynthesis) window.speechSynthesis.cancel();
+                setAriaStatus("Voice AI Assistant deactivated.");
+            }
+        }
+
+        function updateVoiceUi() {
+            if (isVoiceAiActive) {
+                voiceFloatBadge.className = "absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full";
+                voiceFloatPulse.classList.remove('hidden');
+                voiceHeaderBtnLabel.innerText = isSpeaking ? "Speaking..." : (isListening ? "Listening..." : "Voice: On");
+                voiceAiHeaderBtn.className = "flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded-full text-[10px] font-semibold shadow transition animate-pulse";
+                voiceLiveBanner.classList.remove('hidden');
+
+                if (isSpeaking) {
+                    voiceStatusText.innerText = "Speaking response out loud...";
+                    voiceStatusText.className = "font-medium text-amber-300 truncate";
+                } else if (isListening) {
+                    voiceStatusText.innerText = "Listening... Speak hands-free";
+                    voiceStatusText.className = "font-medium text-emerald-300 truncate";
+                } else if (isWaitingForPaymentPin) {
+                    voiceStatusText.innerText = "📲 Waiting for Safaricom PIN entry on phone...";
+                    voiceStatusText.className = "font-medium text-amber-300 truncate animate-pulse";
+                } else {
+                    voiceStatusText.innerText = "Hands-free Voice AI active (Alt+V)";
+                    voiceStatusText.className = "font-medium text-indigo-200 truncate";
+                }
+            } else {
+                voiceFloatBadge.className = "absolute -top-1 -right-1 w-3.5 h-3.5 bg-slate-400 border-2 border-white rounded-full";
+                voiceFloatPulse.classList.add('hidden');
+                voiceHeaderBtnLabel.innerText = "Voice AI: Off";
+                voiceAiHeaderBtn.className = "flex items-center space-x-1 bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-full text-[10px] font-semibold shadow transition";
+                voiceLiveBanner.classList.add('hidden');
+            }
+        }
+
+        // Real-Time Webhook Polling for Blind & Paralyzed Users
+        function startPaymentStatusPolling(reference, trackingNumber, amount) {
+            isWaitingForPaymentPin = true;
+            updateVoiceUi();
+
+            let attempts = 0;
+            const maxAttempts = 30; // poll every 3s for 90s
+            if (paymentPollInterval) clearInterval(paymentPollInterval);
+
+            paymentPollInterval = setInterval(() => {
+                attempts++;
+                fetch(`/assistant/api/payment-status/${reference}/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'SUCCESS' || data.is_paid === true) {
+                            clearInterval(paymentPollInterval);
+                            isWaitingForPaymentPin = false;
+                            updateVoiceUi();
+
+                            playChime('success');
+                            const mpesaCode = data.mpesa_receipt || 'M-PESA-OK';
+                            const confirmText = `Payment confirmed! Safaricom M-Pesa has approved your payment of ${amount} shillings for shipment ${trackingNumber}. M-Pesa Receipt code is ${mpesaCode}. Your cargo is officially marked as paid. Thank you!`;
+
+                            appendBotMessage(`### 🎉 M-Pesa Payment Confirmed!
+- **Shipment:** \`${trackingNumber}\` is now **PAID**
+- **Receipt Code:** \`${mpesaCode}\`
+- **Amount Settled:** **KES ${parseFloat(amount).toLocaleString()}**
+
+✅ *Reconciled automatically in real-time via PayHero webhook!*`);
+
+                            speakText(confirmText);
+                        } else if (attempts >= maxAttempts) {
+                            clearInterval(paymentPollInterval);
+                            isWaitingForPaymentPin = false;
+                            updateVoiceUi();
+                            const timeoutMsg = "The payment check timed out. You can say 'check payment status' at any time to verify.";
+                            appendBotMessage(`ℹ️ *Payment monitoring paused. Say **'check payment status'** once you enter your PIN.*`);
+                            if (isVoiceAiActive) speakText(timeoutMsg);
+                        }
+                    })
+                    .catch(() => {
+                        if (attempts >= maxAttempts) {
+                            clearInterval(paymentPollInterval);
+                            isWaitingForPaymentPin = false;
+                            updateVoiceUi();
+                        }
+                    });
+            }, 3000);
+        }
+
+        // Event Listeners for Voice AI
+        if (voiceAiFloatBtn) voiceAiFloatBtn.addEventListener('click', () => toggleVoiceAi());
+        if (voiceAiHeaderBtn) voiceAiHeaderBtn.addEventListener('click', () => toggleVoiceAi());
+        if (voiceLiveStopBtn) voiceLiveStopBtn.addEventListener('click', () => toggleVoiceAi(false));
+        if (chatMicInputBtn) chatMicInputBtn.addEventListener('click', () => {
+            getAudioContext();
+            if (!isVoiceAiActive) toggleVoiceAi(true);
+            else startListening();
+        });
+
+        // Global Keyboard Shortcut: Alt+V toggles Voice AI anywhere
+        document.addEventListener('keydown', (e) => {
+            if (e.altKey && (e.key === 'v' || e.key === 'V')) {
+                e.preventDefault();
+                toggleVoiceAi();
+            }
+        });
+
+        // Chatbot UI Toggle Logic
+        if (chatToggleBtn && chatBox) {
+            chatToggleBtn.addEventListener('click', () => {
+                chatBox.classList.toggle('hidden');
+                if (!chatBox.classList.contains('hidden')) {
+                    chatInput.focus();
+                    if (chatSuggested.children.length === 0) {
+                        fetchSuggestedPrompts("");
+                    }
+                }
+            });
+
+            chatCloseBtn.addEventListener('click', () => {
+                chatBox.classList.add('hidden');
+            });
+
+            chatClearBtn.addEventListener('click', () => {
+                chatMessages.innerHTML = `
+                    <div class="flex items-start space-x-2">
+                        <div class="w-6 h-6 rounded-full bg-emerald-600 flex-shrink-0 flex items-center justify-center text-white text-[10px]">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-800">
+                            <p class="font-semibold text-slate-900 mb-1">Chat history reset.</p>
+                            <p class="text-slate-600">Ask a question or talk hands-free using Voice AI (Alt+V).</p>
+                        </div>
+                    </div>
+                `;
+                fetchSuggestedPrompts("");
+            });
+
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const msg = chatInput.value.trim();
+                if (!msg) return;
+                sendMessage(msg);
+            });
+        }
+
+        function appendUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = "flex justify-end";
+            div.innerHTML = `
+                <div class="bg-emerald-600 text-white p-3 rounded-2xl rounded-tr-none shadow-sm max-w-[85%]">
+                    <p>${escapeHtml(text)}</p>
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function appendBotMessage(markdownText) {
+            const div = document.createElement('div');
+            div.className = "flex items-start space-x-2";
+            div.innerHTML = `
+                <div class="w-6 h-6 rounded-full bg-emerald-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] mt-1">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-800 leading-relaxed prose prose-xs">
+                    ${formatBotReply(markdownText)}
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function appendLoadingIndicator() {
+            const id = 'chatLoading_' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = "flex items-start space-x-2";
+            div.innerHTML = `
+                <div class="w-6 h-6 rounded-full bg-slate-300 flex-shrink-0 flex items-center justify-center text-white text-[10px]">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-slate-200 p-2.5 rounded-2xl rounded-tl-none text-slate-500 text-xs flex items-center space-x-1.5">
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                    <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return id;
+        }
+
+        function removeLoadingIndicator(id) {
+            const elem = document.getElementById(id);
+            if (elem) elem.remove();
+        }
+
+        function sendMessage(text) {
+            appendUserMessage(text);
+            chatInput.value = '';
+            const loadingId = appendLoadingIndicator();
+
+            fetch("{% url 'chatbot_message_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie('csrftoken')
+                },
+                body: JSON.stringify({ message: text })
+            })
+            .then(res => res.json())
+            .then(data => {
+                removeLoadingIndicator(loadingId);
+                appendBotMessage(data.reply);
+                updateSuggestedPrompts(data.suggested_prompts || []);
+
+                // If Voice AI is active or spoken text is present, speak out loud
+                if (isVoiceAiActive) {
+                    speakText(data.spoken_text || data.reply);
+                }
+
+                // If an M-Pesa STK push was triggered via voice, play chime and start polling status!
+                if (data.action === 'stk_push_sent' && data.reference) {
+                    playChime('sent');
+                    startPaymentStatusPolling(data.reference, data.tracking_number, data.amount);
+                }
+            })
+            .catch(err => {
+                removeLoadingIndicator(loadingId);
+                appendBotMessage("⚠️ Sorry, unable to retrieve response at the moment.");
+                if (isVoiceAiActive) {
+                    speakText("Sorry, I was unable to connect to the logistics server. Please try again.");
+                }
+            });
+        }
+
+        function fetchSuggestedPrompts() {
+            fetch("{% url 'chatbot_message_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie('csrftoken')
+                },
+                body: JSON.stringify({ message: "" })
+            })
+            .then(res => res.json())
+            .then(data => {
+                updateSuggestedPrompts(data.suggested_prompts || []);
+            });
+        }
+
+        function updateSuggestedPrompts(prompts) {
+            chatSuggested.innerHTML = '';
+            prompts.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = "text-[10px] bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 border border-slate-200 px-2 py-1 rounded-full whitespace-nowrap transition";
+                btn.innerText = p;
+                btn.onclick = () => sendMessage(p);
+                chatSuggested.appendChild(btn);
+            });
+        }
+
+        function formatBotReply(text) {
+            if (!text) return "";
+            // Quick format for markdown links, headers, bold, bullets
+            let html = text
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded shadow-sm transition my-0.5">$1 <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-1"></i></a>')
+                .replace(/^### (.*$)/gim, '<h4 class="font-bold text-slate-900 text-xs mt-1.5 mb-0.5">$1</h4>')
+                .replace(/^#### (.*$)/gim, '<h5 class="font-semibold text-slate-800 text-[11px] mt-1 mb-0.5">$1</h5>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
+                .replace(/`([^`]+)`/g, '<code class="bg-slate-100 text-emerald-800 px-1 py-0.5 rounded font-mono text-[10px]">$1</code>')
+                .replace(/^\• (.*$)/gim, '<div class="flex items-start space-x-1 my-0.5"><span class="text-emerald-500 mr-1">•</span><span>$1</span></div>')
+                .replace(/\n\n/g, '<div class="h-1.5"></div>')
+                .replace(/\n/g, '<br>');
+            return html;
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+    {% endif %}
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

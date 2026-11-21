@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Register Account | TransitFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-8">
+    <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Create TransitFlow Account</h1>
+            <p class="text-sm text-slate-500 mt-1">Register as a Client to track goods and pay delivery fees via PayHero Lipwa Link, or register a staff role.</p>
+        </div>
+
+        <form method="POST" class="space-y-4">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Username *</label>
+                    <input type="text" name="username" required placeholder="Choose a username" class="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Password *</label>
+                    <input type="password" name="password" required placeholder="Minimum 4 characters" class="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">First Name</label>
+                    <input type="text" name="first_name" placeholder="John" class="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Last Name</label>
+                    <input type="text" name="last_name" placeholder="Doe" class="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Role / Access Portal *</label>
+                    <select name="role" class="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white">
+                        <option value="CLIENT" selected>Client (Consignor / Cargo Owner)</option>
+                        <option value="DRIVER">Driver (Transit Fleet Operator)</option>
+                        <option value="PORTER">Porter (Depot & Cargo Handling)</option>
+                        <option value="MANAGER">Manager (Logistics & Operations)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mobile Phone (M-Pesa)</label>
+                    <input type="text" name="phone_number" placeholder="0712345678" class="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Company / Organization Name</label>
+                <input type="text" name="company_name" placeholder="e.g. Rift Valley Fresh Exports Ltd" class="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white">
+            </div>
+
+            <div class="pt-2">
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-lg shadow transition text-sm">
+                    Complete Registration & Enter Portal
+                </button>
+            </div>
+            
+            <div class="text-center text-xs text-slate-500 pt-2">
+                Already have an account? <a href="{% url 'login' %}" class="text-emerald-600 font-semibold hover:underline">Sign In</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

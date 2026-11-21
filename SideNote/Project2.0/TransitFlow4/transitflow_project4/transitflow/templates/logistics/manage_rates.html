@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+
+{% block title %}Goods Freight Rates & Tariffs Management | TransitFlow{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header Banner -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div>
+            <div class="flex items-center space-x-2">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                    <i class="fa-solid fa-scale-balanced mr-1"></i>Manager Pricing Authority
+                </span>
+                <span class="text-xs text-slate-400">• Dynamic Tariff Engine</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 mt-1">Goods Freight Rates & Tariffs</h1>
+            <p class="text-xs text-slate-500">Configure per-kilogram transport tariffs and handling fees for client goods, or override individual shipment pricing.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+            <a href="{% url 'manager_dashboard' %}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2.5 rounded-lg border border-slate-300 transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Operations Dashboard</span>
+            </a>
+            <a href="{% url 'payments_index' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-wallet"></i>
+                <span>Payment Center</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Section 1: Goods Tariff Rates by Product -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center">
+                    <i class="fa-solid fa-tags text-indigo-600 mr-2"></i>Client Goods Freight Tariffs (Per Product)
+                </h2>
+                <p class="text-xs text-slate-500">Set standard rate per kg and handling base fees applied when clients ship these items.</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-xs text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200">
+                    <strong class="text-slate-800">{{ products|length }}</strong> Cargo Products Configured
+                </span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                    <tr>
+                        <th class="py-3 px-4 font-semibold">SKU / Item</th>
+                        <th class="py-3 px-4 font-semibold">Cargo Category</th>
+                        <th class="py-3 px-4 font-semibold">Unit Weight</th>
+                        <th class="py-3 px-4 font-semibold">Declared Value</th>
+                        <th class="py-3 px-4 font-semibold">Shipping Rate (Per KG)</th>
+                        <th class="py-3 px-4 font-semibold">Base Handling Fee</th>
+                        <th class="py-3 px-4 font-semibold text-right">Update Tariffs</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for p in products %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-3.5 px-4">
+                            <div class="font-bold text-slate-900">{{ p.name }}</div>
+                            <div class="text-[10px] font-mono text-slate-400">{{ p.sku }}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            {% if p.is_perishable %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                <i class="fa-solid fa-snowflake mr-1 text-blue-600"></i>Perishable Cold-Chain
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+                                <i class="fa-solid fa-box mr-1 text-slate-500"></i>Standard Non-Perishable
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-4 font-medium text-slate-700">
+                            {{ p.unit_weight_kg }} kg
+                        </td>
+                        <td class="py-3.5 px-4 font-mono text-slate-600">
+                            KES {{ p.declared_value|floatformat:2 }}
+                        </td>
+                        <!-- Edit Rate Form -->
+                        <td class="py-3.5 px-4" colspan="3">
+                            <form method="POST" action="{% url 'update_product_rate' p.id %}" class="flex items-center justify-end space-x-2">
+                                {% csrf_token %}
+                                <div class="flex items-center space-x-1">
+                                    <span class="text-[11px] text-slate-400 font-medium">KES</span>
+                                    <input type="number" step="0.50" min="0" name="shipping_rate_per_kg" value="{{ p.shipping_rate_per_kg }}"
+                                           class="w-24 px-2 py-1 text-xs border border-slate-300 rounded font-semibold text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                           title="Shipping rate per kilogram in KES">
+                                    <span class="text-[10px] text-slate-400">/kg</span>
+                                </div>
+                                <div class="flex items-center space-x-1 pl-3">
+                                    <span class="text-[11px] text-slate-400 font-medium">Base: KES</span>
+                                    <input type="number" step="50" min="0" name="base_handling_fee" value="{{ p.base_handling_fee }}"
+                                           class="w-24 px-2 py-1 text-xs border border-slate-300 rounded font-semibold text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                           title="Base handling and depot loading fee">
+                                </div>
+                                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold px-3 py-1.5 rounded transition shadow-sm ml-2">
+                                    Save Rate
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-slate-400">
+                            No cargo products found. Register products to configure pricing.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 2: Active Shipments Delivery Fees & Rate Adjustments -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center">
+                    <i class="fa-solid fa-truck-ramp-box text-emerald-600 mr-2"></i>Shipment Freight Fee Adjustments & Overrides
+                </h2>
+                <p class="text-xs text-slate-500">View current client shipment delivery fees, compare with tariff recommendations, and override or recalculate rates.</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-xs text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200">
+                    <i class="fa-solid fa-calculator mr-1 text-emerald-600"></i>Automated Calculation Engine Active
+                </span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                    <tr>
+                        <th class="py-3 px-4 font-semibold">Tracking #</th>
+                        <th class="py-3 px-4 font-semibold">Client</th>
+                        <th class="py-3 px-4 font-semibold">Route</th>
+                        <th class="py-3 px-4 font-semibold">Cargo Summary</th>
+                        <th class="py-3 px-4 font-semibold">Recommended Tariff</th>
+                        <th class="py-3 px-4 font-semibold">Current Fee</th>
+                        <th class="py-3 px-4 font-semibold">Payment Status</th>
+                        <th class="py-3 px-4 font-semibold text-right">Manager Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in shipments_with_rates %}
+                    {% with s=item.shipment rec=item.recommended_fee diff=item.diff %}
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-3.5 px-4">
+                            <a href="{% url 'shipment_detail' s.tracking_number %}" class="font-mono font-bold text-indigo-600 hover:text-indigo-800">
+                                #{{ s.tracking_number }}
+                            </a>
+                            <div class="text-[10px] text-slate-400">{{ s.created_at|date:"M d, Y" }}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="font-semibold text-slate-900">{{ s.client.get_full_name|default:s.client.username }}</div>
+                            <div class="text-[10px] text-slate-400">{{ s.client.phone_number|default:"No phone" }}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="text-slate-800 font-medium">{{ s.origin }}</div>
+                            <div class="text-[10px] text-slate-400">➔ {{ s.destination }}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="text-slate-700 font-medium">
+                                {{ s.items.count }} item(s) • {{ s.total_weight_kg }} kg
+                            </div>
+                            <div class="text-[10px] text-slate-400">
+                                {% if s.has_perishable_items %}
+                                <span class="text-blue-600 font-semibold">❄️ Cold-chain</span>
+                                {% else %}
+                                <span>📦 Standard freight</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 font-mono font-bold text-slate-800">
+                            KES {{ rec|floatformat:2 }}
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <span class="font-mono font-bold text-emerald-700 text-sm">
+                                KES {{ s.delivery_fee|floatformat:2 }}
+                            </span>
+                            {% if diff != 0 %}
+                            <div class="text-[10px] {% if diff > 0 %}text-emerald-600{% else %}text-amber-600{% endif %}">
+                                {% if diff > 0 %}+KES {{ diff|floatformat:2 }}{% else %}-KES {{ diff|floatformat:2 }}{% endif %} vs tariff
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-4">
+                            {% if s.is_paid %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <i class="fa-solid fa-circle-check mr-1"></i>Paid
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                <i class="fa-regular fa-clock mr-1"></i>Unpaid
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-4 text-right">
+                            <div class="flex items-center justify-end space-x-1.5">
+                                <!-- Quick Auto-Tariff Button -->
+                                <form method="POST" action="{% url 'set_shipment_rate' s.tracking_number %}" class="inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="auto">
+                                    <button type="submit" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold px-2 py-1 rounded border border-slate-300 transition" title="Recalculate rate automatically based on current goods tariffs">
+                                        <i class="fa-solid fa-rotate mr-1"></i>Auto Tariff
+                                    </button>
+                                </form>
+                                <!-- Custom Override Modal Trigger -->
+                                <button type="button" onclick="openOverrideModal('{{ s.tracking_number }}', '{{ s.delivery_fee }}', '{{ rec }}')"
+                                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold px-2.5 py-1 rounded transition shadow-sm">
+                                    <i class="fa-solid fa-pen-to-square mr-1"></i>Set Rate
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-slate-400">
+                            No shipments available to configure rates.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Override Rate Modal -->
+<div id="rateModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 class="text-base font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-hand-holding-dollar text-indigo-600 mr-2"></i>Set Custom Shipment Rate
+            </h3>
+            <button onclick="closeOverrideModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <form id="overrideForm" method="POST" action="" class="space-y-4 mt-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="custom">
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Shipment Tracking Number</label>
+                <div id="modalTracking" class="font-mono text-sm font-bold text-indigo-700 bg-slate-50 p-2 rounded border border-slate-200"></div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
+                <div class="flex justify-between">
+                    <span>Standard Cargo Tariff:</span>
+                    <strong id="modalRecFee" class="font-mono">KES 0.00</strong>
+                </div>
+                <p class="text-[11px] text-blue-700 mt-1">Calculated from weight, item tariffs, and cold-chain surcharges.</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Adjusted Delivery Fee (KES) *</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs font-bold">KES</span>
+                    <input type="number" step="10" min="100" id="modalFeeInput" name="delivery_fee" required
+                           class="w-full pl-12 pr-4 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">Managers can discount or surcharge based on VIP agreements or special logistics requirements.</p>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeOverrideModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow">
+                    Apply New Rate
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openOverrideModal(tracking, currentFee, recFee) {
+    document.getElementById('modalTracking').innerText = '#' + tracking;
+    document.getElementById('modalFeeInput').value = parseFloat(currentFee).toFixed(2);
+    document.getElementById('modalRecFee').innerText = 'KES ' + parseFloat(recFee).toLocaleString('en-US', {minimumFractionDigits: 2});
+    document.getElementById('overrideForm').action = '/shipments/' + tracking + '/set-rate/';
+    document.getElementById('rateModal').classList.remove('hidden');
+}
+
+function closeOverrideModal() {
+    document.getElementById('rateModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

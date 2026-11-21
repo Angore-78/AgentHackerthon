@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}Shipment {{ shipment.tracking_number }} | TransitFlow{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Top Breadcrumb & Status Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-400 mb-1">
+                <a href="{% url portal_url_name %}" class="hover:text-emerald-600">Back to Portal</a>
+                <span>/</span>
+                <span class="text-slate-600">Consignment Waybill</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <h1 class="text-2xl font-bold font-mono text-slate-900">{{ shipment.tracking_number }}</h1>
+                <span class="px-2.5 py-1 rounded-full text-xs font-semibold border {{ shipment.status_badge_class }}">
+                    {{ shipment.get_status_display }}
+                </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">Booked on {{ shipment.created_at|date:"F d, Y at H:i" }} by {{ shipment.client.get_full_name|default:shipment.client.username }}</p>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            {% if not shipment.is_paid %}
+            <a href="{% url 'initiate_payment' shipment.tracking_number %}" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-credit-card"></i>
+                <span>Pay KES {{ shipment.delivery_fee }} via Lipwa Link</span>
+            </a>
+            {% else %}
+            <span class="bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold px-3.5 py-2 rounded-lg flex items-center space-x-1.5">
+                <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                <span>Payment Confirmed</span>
+            </span>
+            {% endif %}
+            
+            {% if is_driver or is_porter or is_manager %}
+            <button onclick="document.getElementById('quickLogModal').classList.remove('hidden')" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-location-crosshairs text-emerald-400"></i>
+                <span>Log Checkpoint</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alert Banner (If in Temperature Alert) -->
+    {% if shipment.status == 'TEMP_ALERT' %}
+    <div class="p-4 rounded-xl bg-red-100 border border-red-300 text-red-900 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-triangle-exclamation text-2xl text-red-600"></i>
+            <div>
+                <h4 class="font-bold text-sm">Critical Cold-Chain Temperature Excursion!</h4>
+                <p class="text-xs text-red-800">A temperature reading exceeded the designated bounds for perishable cargo in this shipment. Please inspect refrigeration equipment immediately.</p>
+            </div>
+        </div>
+        <span class="text-xs bg-red-200 text-red-900 font-bold px-3 py-1 rounded-full uppercase">Action Alert</span>
+    </div>
+    {% endif %}
+
+    <!-- Overview Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Left: Route & Fleet Specs -->
+        <div class="space-y-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400">Transit Route</h3>
+                <div class="text-xs space-y-2">
+                    <div class="flex items-start space-x-2">
+                        <i class="fa-regular fa-circle-dot text-emerald-600 mt-0.5"></i>
+                        <div>
+                            <span class="text-slate-400 text-[10px] block">Origin</span>
+                            <span class="font-semibold text-slate-800">{{ shipment.origin }}</span>
+                        </div>
+                    </div>
+                    <div class="border-l-2 border-dashed border-slate-200 ml-1.5 h-4"></div>
+                    <div class="flex items-start space-x-2">
+                        <i class="fa-solid fa-location-dot text-rose-600 mt-0.5"></i>
+                        <div>
+                            <span class="text-slate-400 text-[10px] block">Destination</span>
+                            <span class="font-semibold text-slate-800">{{ shipment.destination }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-2 border-t border-slate-100 text-xs">
+                    <span class="text-slate-400 text-[10px] block">Latest Reported Checkpoint:</span>
+                    <span class="font-bold text-emerald-700">{{ shipment.current_location }}</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3 text-xs">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400">Assigned Logistics Crew</h3>
+                <div>
+                    <span class="text-slate-400 text-[10px] block">Driver</span>
+                    <span class="font-semibold text-slate-800">
+                        {% if shipment.assigned_driver %}
+                            {{ shipment.assigned_driver.get_full_name|default:shipment.assigned_driver.username }}
+                        {% else %}
+                            Awaiting Assignment
+                        {% endif %}
+                    </span>
+                    <span class="text-slate-500 font-mono text-[11px] block">{{ shipment.vehicle_plate|default:"Plate Pending" }}</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 text-[10px] block">Depot Porter</span>
+                    <span class="font-semibold text-slate-800">
+                        {% if shipment.assigned_porter %}
+                            {{ shipment.assigned_porter.get_full_name|default:shipment.assigned_porter.username }}
+                        {% else %}
+                            Depot Handling Team
+                        {% endif %}
+                    </span>
+                </div>
+                <div>
+                    <span class="text-slate-400 text-[10px] block">Consignor Client</span>
+                    <span class="font-semibold text-slate-800">{{ shipment.client.get_full_name|default:shipment.client.username }}</span>
+                    <span class="text-slate-500 text-[11px] block">{{ shipment.client.phone_number }}</span>
+                </div>
+            </div>
+
+            <!-- Products Manifest Card -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400">Goods in Transit ({{ items|length }})</h3>
+                <div class="space-y-2 text-xs">
+                    {% for item in items %}
+                    <div class="p-2.5 rounded-lg border {% if item.product.is_perishable %}bg-blue-50/60 border-blue-200{% else %}bg-slate-50 border-slate-200{% endif %}">
+                        <div class="flex items-center justify-between font-semibold">
+                            <span>{{ item.quantity }}x {{ item.product.name }}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded {% if item.product.is_perishable %}bg-blue-200 text-blue-900{% else %}bg-slate-200 text-slate-800{% endif %}">
+                                {% if item.product.is_perishable %}❄️ Perishable{% else %}📦 Non-Perishable{% endif %}
+                            </span>
+                        </div>
+                        <div class="text-[10px] text-slate-500 mt-1 flex justify-between">
+                            <span>Package: {{ item.get_package_type_display }}</span>
+                            <span>Weight: {{ item.total_weight }} kg</span>
+                        </div>
+                        {% if item.product.is_perishable %}
+                        <div class="text-[10px] text-blue-700 mt-1 font-semibold">
+                            Target Temp: {{ item.product.min_temp_celsius }}°C to {{ item.product.max_temp_celsius }}°C ({{ item.product.get_spoilage_risk_display }})
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="text-slate-400 text-xs">No items listed.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Center & Right: Chronological Transit Timeline -->
+        <div class="md:col-span-2 space-y-4">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                    <div>
+                        <h3 class="font-bold text-base text-slate-900 flex items-center">
+                            <i class="fa-solid fa-timeline text-emerald-600 mr-2"></i>Chronological Transit & Checkpoint Events
+                        </h3>
+                        <p class="text-xs text-slate-400">Audit trail of all depot handovers, temperature checks, and highway checkpoint logs.</p>
+                    </div>
+                    <span class="text-xs text-slate-500 font-mono">{{ events|length }} milestone logs</span>
+                </div>
+
+                <!-- Timeline List -->
+                <div class="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                    {% for event in events %}
+                    <div class="relative">
+                        <!-- Dot -->
+                        <div class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow {% if event.is_temp_breach %}bg-red-600 ring-4 ring-red-100{% elif event.event_type == 'DELIVERY_CONFIRMED' %}bg-emerald-600 ring-4 ring-emerald-100{% else %}bg-slate-600{% endif %}"></div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition space-y-2">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <div class="font-bold text-xs text-slate-900 flex items-center space-x-2">
+                                    <span>{{ event.get_event_type_display }}</span>
+                                    {% if event.is_temp_breach %}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">
+                                        ⚠️ Temperature Breach
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <span class="text-[11px] text-slate-400 font-mono">{{ event.timestamp|date:"M d, Y • H:i" }}</span>
+                            </div>
+
+                            <div class="text-xs text-slate-700 flex items-center space-x-1">
+                                <i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i>
+                                <span>Location: <strong>{{ event.location }}</strong></span>
+                            </div>
+
+                            <!-- Temperature Reading Indicator (if logged) -->
+                            {% if event.temperature_celsius is not None %}
+                            <div class="inline-flex items-center space-x-2 px-2.5 py-1 rounded-lg text-xs font-semibold {% if event.is_temp_breach %}bg-red-100 text-red-900 border border-red-200{% else %}bg-blue-100 text-blue-900 border border-blue-200{% endif %}">
+                                <i class="fa-solid fa-thermometer-half"></i>
+                                <span>Core Temperature: {{ event.temperature_celsius }}°C</span>
+                            </div>
+                            {% endif %}
+
+                            {% if event.remarks %}
+                            <p class="text-xs text-slate-600 italic mt-1 bg-white p-2 rounded border border-slate-100">
+                                "{{ event.remarks }}"
+                            </p>
+                            {% endif %}
+
+                            <div class="text-[10px] text-slate-400 pt-1 flex justify-between">
+                                <span>Logged by: {{ event.logged_by.get_full_name|default:event.logged_by.username|default:"System" }}</span>
+                                <span>Seal Intact: {% if event.seal_intact %}✅ Yes{% else %}❌ No{% endif %}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-slate-400 text-xs py-4">No checkpoint events logged yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: QUICK CHECKPOINT / TEMPERATURE LOG -->
+<!-- ========================================================================= -->
+<div id="quickLogModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-location-dot text-emerald-600 mr-2"></i>Log Transit Checkpoint Event
+            </h3>
+            <button onclick="document.getElementById('quickLogModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form action="{% url 'log_transit_event' shipment.tracking_number %}" method="POST" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Event Type *</label>
+                <select name="event_type" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                    <option value="CHECKPOINT">Highway Checkpoint</option>
+                    <option value="TEMP_LOG">Temperature / Cold-Chain Inspection</option>
+                    <option value="DELAY_REPORT">Delay Incident</option>
+                    <option value="UNLOADED">Unloading at Destination Hub</option>
+                    <option value="DELIVERY_CONFIRMED">Delivery Sign-off & Handover</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Location Name *</label>
+                <input type="text" name="location" value="{{ shipment.current_location }}" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Temperature (°C)</label>
+                    <input type="number" step="0.1" name="temperature_celsius" placeholder="e.g. 4.0" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Shipment Status</label>
+                    <select name="new_status" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                        <option value="IN_TRANSIT">In Transit</option>
+                        <option value="AT_CHECKPOINT">At Checkpoint</option>
+                        <option value="ARRIVED_DESTINATION">Arrived Destination</option>
+                        <option value="DELIVERED">Delivered & Signed</option>
+                        <option value="DELAYED">Delayed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Inspection Remarks</label>
+                <textarea name="remarks" rows="2" placeholder="e.g. Verified cold-room reefer temperature. No anomalies." class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg"></textarea>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('quickLogModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">Cancel</button>
+                <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow">Save Event</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block title %}Client Portal | Track Shipments & PayHero Payments{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Client Header -->
+    <div class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-2">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-blue-500/30 text-blue-200 backdrop-blur-sm">
+                    <i class="fa-solid fa-building-user mr-1.5"></i>Client Consignor Portal
+                </span>
+                <span class="text-xs text-blue-300">• Dedicated Customer Session</span>
+            </div>
+            <h1 class="text-2xl font-bold mt-1">Cargo Tracking & Invoicing</h1>
+            <p class="text-xs text-blue-200 max-w-xl">Monitor your temperature-sensitive fresh produce and industrial freight in transit across regional corridors.</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="document.getElementById('clientBookModal').classList.remove('hidden')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-plus"></i>
+                <span>Book New Shipment</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Outstanding Invoices Notice (If Unpaid Shipments Exist) -->
+    {% if unpaid_total > 0 %}
+    <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-lg">
+                <i class="fa-solid fa-credit-card"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm text-amber-900">Pending Freight Delivery Fees: KES {{ unpaid_total|floatformat:2 }}</h4>
+                <p class="text-xs text-amber-700">Settle your transit charges seamlessly via PayHero Lipwa Link or direct M-Pesa STK Push.</p>
+            </div>
+        </div>
+        <a href="{% url 'payments_index' %}" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-wallet"></i>
+            <span>Pay Invoices Now</span>
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Shipments Grid / Cards -->
+    <div class="space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="font-bold text-sm text-slate-800 flex items-center">
+                <i class="fa-solid fa-boxes-stacked text-emerald-600 mr-2"></i>Your Consignments in Transit ({{ shipments|length }})
+            </h3>
+            <span class="text-xs text-slate-400">Real-time status updates</span>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+            {% for shipment in shipments %}
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition space-y-4">
+                
+                <!-- Card Top Row -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl {% if shipment.has_perishable_items %}bg-blue-600 text-white{% else %}bg-slate-800 text-white{% endif %} flex items-center justify-center text-lg">
+                            {% if shipment.has_perishable_items %}
+                            <i class="fa-solid fa-snowflake"></i>
+                            {% else %}
+                            <i class="fa-solid fa-box"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-mono font-bold text-base text-slate-900">{{ shipment.tracking_number }}</span>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border {{ shipment.status_badge_class }}">
+                                    {{ shipment.get_status_display }}
+                                </span>
+                            </div>
+                            <span class="text-xs text-slate-400 font-sans block mt-0.5">Dispatched: {{ shipment.created_at|date:"M d, Y • H:i" }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Payment Status & Quick Pay Button -->
+                    <div class="flex items-center space-x-2">
+                        {% if shipment.is_paid %}
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <i class="fa-solid fa-circle-check text-emerald-600 mr-1.5"></i>Paid (KES {{ shipment.delivery_fee }})
+                        </span>
+                        {% else %}
+                        <a href="{% url 'initiate_payment' shipment.tracking_number %}" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg shadow transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>Pay KES {{ shipment.delivery_fee }} with Lipwa Link</span>
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'shipment_detail' shipment.tracking_number %}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-lg font-medium transition">
+                            Timeline
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Route & Real-Time Location -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">Origin & Destination</div>
+                        <div class="text-slate-900 font-medium mt-1">
+                            {{ shipment.origin }} <i class="fa-solid fa-arrow-right text-[10px] text-slate-400 mx-1"></i> {{ shipment.destination }}
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">Current Highway Location</div>
+                        <div class="text-emerald-700 font-bold mt-1 flex items-center">
+                            <i class="fa-solid fa-location-dot mr-1.5 text-emerald-600"></i>
+                            <span>{{ shipment.current_location }}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold">Cargo Preservation Status</div>
+                        <div class="mt-1">
+                            {% if shipment.has_perishable_items %}
+                            <span class="inline-flex items-center text-blue-700 font-bold bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px]">
+                                <i class="fa-solid fa-snowflake mr-1 text-blue-500"></i>Cold-Chain Active (2°C - 6°C)
+                            </span>
+                            {% else %}
+                            <span class="text-slate-600">Standard dry freight handling</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items Contained -->
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-700 flex flex-wrap gap-2 items-center">
+                    <span class="font-semibold text-slate-500 text-[11px] uppercase mr-1">Products:</span>
+                    {% for item in shipment.items.all %}
+                    <span class="bg-white border border-slate-200 px-2.5 py-1 rounded text-xs font-medium text-slate-800 flex items-center space-x-1">
+                        {% if item.product.is_perishable %}
+                        <i class="fa-solid fa-snowflake text-blue-500 text-[10px]"></i>
+                        {% else %}
+                        <i class="fa-solid fa-cube text-slate-400 text-[10px]"></i>
+                        {% endif %}
+                        <span>{{ item.quantity }}x {{ item.product.name }}</span>
+                    </span>
+                    {% empty %}
+                    <span class="text-slate-400">Consignment package</span>
+                    {% endfor %}
+                </div>
+
+            </div>
+            {% empty %}
+            <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 text-xs">
+                <i class="fa-solid fa-truck text-4xl mb-3 text-slate-300"></i>
+                <h4 class="text-sm font-semibold text-slate-700 mb-1">No Shipments Found</h4>
+                <p>You have not booked any goods for transit yet. Click <strong>'Book New Shipment'</strong> to create your first consignment.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: CLIENT BOOK NEW SHIPMENT -->
+<!-- ========================================================================= -->
+<div id="clientBookModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-truck-ramp-box text-emerald-600 mr-2"></i>Book Freight Consignment
+            </h3>
+            <button onclick="document.getElementById('clientBookModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form action="{% url 'create_shipment' %}" method="POST" class="space-y-4">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Origin City / Depot</label>
+                    <input type="text" name="origin" value="Nairobi ICD" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Destination Address</label>
+                    <input type="text" name="destination" value="Mombasa Warehouse #12" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                </div>
+            </div>
+
+            <!-- Product Selection -->
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Select Product to Transport *</label>
+                <select name="product_ids" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                    <option value="">-- Choose Product --</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">
+                        {% if p.is_perishable %}❄️ [PERISHABLE]{% else %}📦 [NON-PERISHABLE]{% endif %}
+                        {{ p.name }} (Weight: {{ p.unit_weight_kg }}kg)
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Quantity</label>
+                    <input type="number" name="quantities" value="5" min="1" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Packaging Format</label>
+                    <select name="package_types" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                        <option value="CRATE_CHILLED">Thermal Chilled Crate</option>
+                        <option value="CARTON" selected>Carton Box</option>
+                        <option value="PALLET">Wooden Pallet</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('clientBookModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">Cancel</button>
+                <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow">Confirm Booking</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
