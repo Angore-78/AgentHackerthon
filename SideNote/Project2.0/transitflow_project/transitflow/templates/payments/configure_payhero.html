@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}PayHero API Configuration | TransitFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-slate-900 text-white p-6">
+            <div>
+                <span class="text-xs bg-purple-500/20 text-purple-300 font-semibold px-2.5 py-0.5 rounded border border-purple-500/30">
+                    <i class="fa-solid fa-gear mr-1"></i>Manager Administrative Settings
+                </span>
+                <h1 class="text-xl font-bold mt-1">PayHero Lipwa Link & API Credentials</h1>
+                <p class="text-xs text-slate-300">Configure your PayHero Kenya developer keys, channel ID, and callback webhooks.</p>
+            </div>
+        </div>
+
+        <form method="POST" class="p-6 space-y-5">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">PayHero API Username (Basic Auth) *</label>
+                    <input type="text" name="api_username" value="{{ config.api_username }}" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg font-mono">
+                    <p class="text-[10px] text-slate-400 mt-1">Obtained from your PayHero Kenya Developer Account.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">PayHero API Password / Secret *</label>
+                    <input type="password" name="api_password" value="{{ config.api_password }}" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg font-mono">
+                    <p class="text-[10px] text-slate-400 mt-1">Used to encode Authorization Basic header.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Payment Channel ID *</label>
+                    <input type="text" name="channel_id" value="{{ config.channel_id }}" required placeholder="e.g. 133" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg font-mono">
+                    <p class="text-[10px] text-slate-400 mt-1">Your registered M-Pesa Till or Paybill Channel ID on PayHero.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Lipwa Link Identifier / Slug *</label>
+                    <div class="flex items-center">
+                        <span class="text-xs text-slate-400 bg-slate-100 border border-r-0 border-slate-300 px-2.5 py-2.5 rounded-l-lg font-mono">lipwa.link/</span>
+                        <input type="text" name="lipwa_link_slug" value="{{ config.lipwa_link_slug }}" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-r-lg font-mono">
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Public handle for dynamic payment link generation.</p>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label class="block text-xs font-bold text-slate-800 uppercase mb-2">Environment Mode</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center p-3 bg-white rounded-lg border border-slate-300 cursor-pointer hover:border-emerald-500">
+                        <input type="radio" name="environment" value="SANDBOX" {% if config.environment == 'SANDBOX' %}checked{% endif %} class="text-emerald-600 mr-2">
+                        <div>
+                            <div class="text-xs font-bold text-slate-800">🧪 Sandbox / Simulation</div>
+                            <div class="text-[10px] text-slate-500">Test workflows without real M-Pesa balances</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-3 bg-white rounded-lg border border-slate-300 cursor-pointer hover:border-emerald-500">
+                        <input type="radio" name="environment" value="LIVE" {% if config.environment == 'LIVE' %}checked{% endif %} class="text-emerald-600 mr-2">
+                        <div>
+                            <div class="text-xs font-bold text-emerald-800">🟢 Live Production</div>
+                            <div class="text-[10px] text-slate-500">backend.payhero.co.ke active collections</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Webhook Callback URL</label>
+                <input type="url" name="callback_url" value="{{ config.callback_url }}" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg font-mono">
+                <p class="text-[10px] text-slate-400 mt-1">Endpoint registered with PayHero to receive asynchronous transaction results.</p>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <a href="{% url 'payments_index' %}" class="text-xs text-slate-500 hover:text-slate-800">Back</a>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow transition">
+                    Save Configuration
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

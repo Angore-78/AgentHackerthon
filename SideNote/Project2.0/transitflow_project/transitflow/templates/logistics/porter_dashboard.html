@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Porter Handling & Inspection Terminal | TransitFlow{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Porter Terminal Banner -->
+    <div class="bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white p-6 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-2">
+                <span class="px-2.5 py-0.5 rounded text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">
+                    <i class="fa-solid fa-dolly mr-1.5"></i>Porter Terminal Access
+                </span>
+                <span class="text-xs text-amber-200">• Active 10-Hour Warehouse Shift</span>
+            </div>
+            <h1 class="text-2xl font-bold mt-1">Depot Cargo Handling & Inspection</h1>
+            <p class="text-xs text-amber-100 max-w-2xl">Verify physical seals, conduct mandatory infrared temperature readings on perishable cargo, and certify loading manifests.</p>
+        </div>
+        <div class="text-right sm:border-l sm:border-amber-500/50 sm:pl-6">
+            <div class="text-xs text-amber-200">Terminal Station:</div>
+            <div class="text-sm font-bold">{{ user.assigned_hub_name|default:"Nairobi Central ICD - Bay 4" }}</div>
+            <div class="text-[10px] text-amber-300 font-mono mt-0.5">Operator ID: #PRT-{{ user.id }}</div>
+        </div>
+    </div>
+
+    <!-- Cold-Chain & Safe Handling Guidelines Card -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+            <h3 class="text-xs font-bold text-blue-900 uppercase flex items-center mb-2">
+                <i class="fa-solid fa-snowflake text-blue-600 mr-2"></i>Perishable Cold-Chain Checklist
+            </h3>
+            <ul class="text-xs text-blue-800 space-y-1.5 list-disc list-inside">
+                <li>Check infrared core temperature upon receiving fresh produce/dairy/meat.</li>
+                <li>Verify reefer trailer thermostat matches required range (typically <strong>2.0°C to 6.0°C</strong>).</li>
+                <li>Do not leave perishable cartons on unchilled loading docks exceeding 15 minutes.</li>
+            </ul>
+        </div>
+        <div class="bg-slate-100 border border-slate-200 p-4 rounded-xl">
+            <h3 class="text-xs font-bold text-slate-800 uppercase flex items-center mb-2">
+                <i class="fa-solid fa-boxes-packing text-slate-600 mr-2"></i>Non-Perishable Stacking Rules
+            </h3>
+            <ul class="text-xs text-slate-700 space-y-1.5 list-disc list-inside">
+                <li>Heavy machinery and crated equipment must remain secured to pallet skids.</li>
+                <li>Cartons marked <strong>FRAGILE</strong> must never be double-stacked under bulk cargo.</li>
+                <li>Verify security seals are intact and report any sheared bolts immediately.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Active Shipments Awaiting Porter Check-in / Inspection -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-sm text-slate-900 flex items-center">
+                <i class="fa-solid fa-clipboard-check text-amber-600 mr-2"></i>Consignments in Depot Handling Queue
+            </h3>
+            <span class="text-xs bg-amber-100 text-amber-800 font-semibold px-2.5 py-0.5 rounded-full">
+                {{ shipments|length }} consignments
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
+                    <tr>
+                        <th class="px-4 py-3">Tracking / Consignment</th>
+                        <th class="px-4 py-3">Classification & Target Temp</th>
+                        <th class="px-4 py-3">Current Location</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Assigned Driver</th>
+                        <th class="px-4 py-3 text-right">Porter Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    {% for shipment in shipments %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-4 py-3">
+                            <span class="font-mono font-bold text-slate-900 block">{{ shipment.tracking_number }}</span>
+                            <span class="text-[10px] text-slate-400">{{ shipment.origin }} ➔ {{ shipment.destination }}</span>
+                        </td>
+
+                        <td class="px-4 py-3">
+                            {% if shipment.has_perishable_items %}
+                            <div class="flex items-center space-x-1">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 flex items-center">
+                                    <i class="fa-solid fa-snowflake text-blue-600 mr-1"></i>Perishable
+                                </span>
+                            </div>
+                            <div class="text-[10px] text-blue-700 mt-1">
+                                {% for item in shipment.items.all %}
+                                    {% if item.product.is_perishable %}
+                                    <div>• {{ item.product.name }}: <strong>{{ item.product.min_temp_celsius }}°C to {{ item.product.max_temp_celsius }}°C</strong></div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                📦 Non-Perishable Freight
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="px-4 py-3 font-medium text-slate-800">
+                            {{ shipment.current_location }}
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border {{ shipment.status_badge_class }}">
+                                {{ shipment.get_status_display }}
+                            </span>
+                        </td>
+
+                        <td class="px-4 py-3">
+                            {% if shipment.assigned_driver %}
+                                {{ shipment.assigned_driver.get_full_name|default:shipment.assigned_driver.username }}
+                            {% else %}
+                                <span class="text-slate-400">Awaiting Driver</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="px-4 py-3 text-right space-x-1">
+                            <button onclick="openInspectModal('{{ shipment.tracking_number }}', '{{ shipment.current_location }}', {{ shipment.has_perishable_items|yesno:'true,false' }})" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded text-xs shadow-sm transition">
+                                <i class="fa-solid fa-microscope mr-1"></i>Inspect & Log
+                            </button>
+                            <a href="{% url 'shipment_detail' shipment.tracking_number %}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded text-xs transition">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                            No shipments currently awaiting handling at this terminal.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: PORTER INSPECTION & TEMPERATURE LOGGING -->
+<!-- ========================================================================= -->
+<div id="porterInspectModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-clipboard-check text-amber-600 mr-2"></i>Log Cargo Handling & Cold-Chain Reading
+            </h3>
+            <button onclick="document.getElementById('porterInspectModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form id="porterInspectForm" method="POST" action="" class="space-y-4">
+            {% csrf_token %}
+            
+            <div class="text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                Consignment: <strong id="modalTrackingNum" class="font-mono text-slate-900"></strong>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Handling Event Type *</label>
+                <select name="event_type" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                    <option value="CHECKIN">Porter Check-in & Initial Receiving</option>
+                    <option value="TEMP_LOG" selected>Temperature / Cold-Chain Inspection</option>
+                    <option value="LOADED">Loaded & Secured onto Transit Vehicle</option>
+                    <option value="UNLOADED">Unloaded at Destination Cold Room</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Depot / Handling Location</label>
+                <input type="text" name="location" id="modalLocation" required class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+            </div>
+
+            <!-- Temperature Reading (High Importance for Perishables) -->
+            <div id="modalTempSection" class="p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
+                <div class="text-xs font-bold text-blue-900 flex items-center justify-between">
+                    <span><i class="fa-solid fa-thermometer-half text-blue-600 mr-1"></i>Core Temperature Reading (°C)</span>
+                    <span class="text-[10px] text-blue-600 font-mono">Infrared Scanner</span>
+                </div>
+                <input type="number" step="0.1" name="temperature_celsius" placeholder="e.g. 4.2" class="w-full text-xs p-2.5 bg-white border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <p class="text-[10px] text-blue-700">If reading violates permissible bounds for perishable goods, the system automatically sounds an alert and updates the manifest.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Cargo Condition</label>
+                    <select name="cargo_condition" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                        <option value="OPTIMAL" selected>Optimal / Pristine</option>
+                        <option value="ACCEPTABLE">Acceptable</option>
+                        <option value="MINOR_ISSUE">Minor Packaging Wear</option>
+                        <option value="CRITICAL_DAMAGE">Damaged / Temp Breach</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Next Status</label>
+                    <select name="new_status" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg">
+                        <option value="RECEIVED_AT_HUB">Received at Depot</option>
+                        <option value="LOADING">Loading in Progress</option>
+                        <option value="IN_TRANSIT">Cleared for Transit</option>
+                    </select>
+                </div>
+            </div>
+
+            <label class="flex items-center text-xs text-slate-700">
+                <input type="checkbox" name="seal_intact" checked class="rounded border-slate-300 text-amber-600 mr-2">
+                Verified: Container / Crate Tamper Seals are Intact
+            </label>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Remarks & Observations</label>
+                <textarea name="remarks" rows="2" placeholder="e.g. Thermal crates checked, ice packs replenished, stacked on floor pallet." class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg"></textarea>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('porterInspectModal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">Cancel</button>
+                <button type="submit" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow">Submit Inspection</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openInspectModal(trackingNum, location, isPerishable) {
+    document.getElementById('modalTrackingNum').innerText = trackingNum;
+    document.getElementById('modalLocation').value = location;
+    document.getElementById('porterInspectForm').action = "/shipments/" + trackingNum + "/log-event/";
+    document.getElementById('porterInspectModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}
